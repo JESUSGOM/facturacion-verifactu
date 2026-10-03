@@ -104,7 +104,8 @@ class ServicioReconciliacionVerifactuTest {
                         estadoService,
                         builder,
                         gateway,
-                        interpreter
+                        interpreter,
+                        true
                 );
 
         ResultadoConsultaRegistroAeat obtenido =
@@ -220,7 +221,8 @@ class ServicioReconciliacionVerifactuTest {
                         estadoService,
                         builder,
                         gateway,
-                        interpreter
+                        interpreter,
+                        true
                 );
 
         service.reconciliar(
@@ -296,7 +298,8 @@ class ServicioReconciliacionVerifactuTest {
                         estadoService,
                         builder,
                         gateway,
-                        interpreter
+                        interpreter,
+                        true
                 );
 
         service.reconciliar(

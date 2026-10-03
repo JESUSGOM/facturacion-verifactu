@@ -5,8 +5,11 @@ import es.gob.agenciatributaria.www2.static_files.common.internet.dep.aplicacion
 import es.jfgb.facturacion.verifactu.DatosReconciliacionVerifactu;
 import es.jfgb.facturacion.verifactu.EstadoReconciliacionVerifactuService;
 import es.jfgb.facturacion.verifactu.aeat.soap.AeatSoapGateway;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
@@ -19,6 +22,9 @@ import java.util.Locale;
  *
  * Solo se registra cuando esta activo exclusivamente
  * el perfil real de preproduccion AEAT.
+ *
+ * Ademas, toda consulta externa permanece bloqueada
+ * por configuracion salvo habilitacion expresa.
  */
 @Service
 @Profile("aeat-pre & !dev")
@@ -34,22 +40,46 @@ public class ServicioReconciliacionVerifactu {
     private final AeatConsultaRegistroBuilder consultaBuilder;
     private final AeatSoapGateway soapGateway;
     private final AeatConsultaRegistroInterpreter interpreter;
+    private final boolean consultaHabilitada;
 
     public ServicioReconciliacionVerifactu(
             EstadoReconciliacionVerifactuService estadoService,
             AeatConsultaRegistroBuilder consultaBuilder,
             AeatSoapGateway soapGateway,
-            AeatConsultaRegistroInterpreter interpreter) {
+            AeatConsultaRegistroInterpreter interpreter,
+            @Value("${verifactu.consulta-habilitada:false}")
+            boolean consultaHabilitada) {
 
         this.estadoService = estadoService;
         this.consultaBuilder = consultaBuilder;
         this.soapGateway = soapGateway;
         this.interpreter = interpreter;
+        this.consultaHabilitada = consultaHabilitada;
     }
 
     public ResultadoConsultaRegistroAeat reconciliar(
             Long empresaId,
             Long registroId) {
+
+        /*
+         * CERROJO DE SEGURIDAD.
+         *
+         * Debe ejecutarse antes de:
+         *
+         * - tocar la base de datos;
+         * - construir la consulta;
+         * - invocar el gateway SOAP.
+         *
+         * Por defecto la propiedad es false.
+         */
+        if (!consultaHabilitada) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "La consulta VERI*FACTU está "
+                            + "deshabilitada por configuración"
+            );
+        }
 
         /*
          * Primera transaccion:
