@@ -34,7 +34,9 @@ public class ProductoController {
     public List<ProductoResponse> listar(
             @PathVariable Long empresaId) {
 
-        return productoService.listar(empresaId);
+        return productoService.listar(
+                empresaId
+        );
     }
 
     @GetMapping("/{productoId}")
@@ -45,6 +47,32 @@ public class ProductoController {
         return productoService.obtener(
                 empresaId,
                 productoId
+        );
+    }
+
+    @PutMapping("/{productoId}")
+    public ProductoResponse modificar(
+            @PathVariable Long empresaId,
+            @PathVariable Long productoId,
+            @Valid @RequestBody ProductoRequest request) {
+
+        return productoService.modificar(
+                empresaId,
+                productoId,
+                request
+        );
+    }
+
+    @PatchMapping("/{productoId}/activo")
+    public ProductoResponse cambiarActivo(
+            @PathVariable Long empresaId,
+            @PathVariable Long productoId,
+            @RequestParam("activo") boolean activo) {
+
+        return productoService.cambiarActivo(
+                empresaId,
+                productoId,
+                activo
         );
     }
 }

@@ -12,7 +12,9 @@ public class ClienteController {
 
     private final ClienteService clienteService;
 
-    public ClienteController(ClienteService clienteService) {
+    public ClienteController(
+            ClienteService clienteService) {
+
         this.clienteService = clienteService;
     }
 
@@ -22,14 +24,19 @@ public class ClienteController {
             @PathVariable Long empresaId,
             @Valid @RequestBody ClienteRequest request) {
 
-        return clienteService.crear(empresaId, request);
+        return clienteService.crear(
+                empresaId,
+                request
+        );
     }
 
     @GetMapping
     public List<ClienteResponse> listar(
             @PathVariable Long empresaId) {
 
-        return clienteService.listar(empresaId);
+        return clienteService.listar(
+                empresaId
+        );
     }
 
     @GetMapping("/{clienteId}")
@@ -37,6 +44,35 @@ public class ClienteController {
             @PathVariable Long empresaId,
             @PathVariable Long clienteId) {
 
-        return clienteService.obtener(empresaId, clienteId);
+        return clienteService.obtener(
+                empresaId,
+                clienteId
+        );
+    }
+
+    @PutMapping("/{clienteId}")
+    public ClienteResponse modificar(
+            @PathVariable Long empresaId,
+            @PathVariable Long clienteId,
+            @Valid @RequestBody ClienteRequest request) {
+
+        return clienteService.modificar(
+                empresaId,
+                clienteId,
+                request
+        );
+    }
+
+    @PatchMapping("/{clienteId}/activo")
+    public ClienteResponse cambiarActivo(
+            @PathVariable Long empresaId,
+            @PathVariable Long clienteId,
+            @RequestParam("activo") boolean activo) {
+
+        return clienteService.cambiarActivo(
+                empresaId,
+                clienteId,
+                activo
+        );
     }
 }

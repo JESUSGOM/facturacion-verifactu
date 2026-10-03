@@ -12,14 +12,18 @@ public class EmpresaService {
 
     private final EmpresaRepository empresaRepository;
 
-    public EmpresaService(EmpresaRepository empresaRepository) {
+    public EmpresaService(
+            EmpresaRepository empresaRepository) {
+
         this.empresaRepository = empresaRepository;
     }
 
     @Transactional
-    public EmpresaResponse crear(EmpresaRequest request) {
+    public EmpresaResponse crear(
+            EmpresaRequest request) {
 
-        String nif = request.getNif().trim().toUpperCase();
+        String nif =
+                normalizarNif(request.getNif());
 
         if (empresaRepository.existsByNif(nif)) {
             throw new ResponseStatusException(
@@ -30,30 +34,75 @@ public class EmpresaService {
 
         Empresa empresa = new Empresa();
 
-        empresa.setNif(nif);
-        empresa.setRazonSocial(request.getRazonSocial().trim());
-        empresa.setNombreComercial(request.getNombreComercial());
-        empresa.setDireccion(request.getDireccion());
-        empresa.setCodigoPostal(request.getCodigoPostal());
-        empresa.setMunicipio(request.getMunicipio());
-        empresa.setProvincia(request.getProvincia());
+        aplicarDatos(
+                empresa,
+                request,
+                nif
+        );
 
-        if (request.getCodigoPais() != null
-                && !request.getCodigoPais().isBlank()) {
+        empresa.setActiva(true);
 
-            empresa.setCodigoPais(
-                    request.getCodigoPais().trim().toUpperCase()
+        return convertir(
+                empresaRepository.saveAndFlush(empresa)
+        );
+    }
+
+    @Transactional
+    public EmpresaResponse modificar(
+            Long id,
+            EmpresaRequest request) {
+
+        Empresa empresa =
+                empresaRepository.findById(id)
+                        .orElseThrow(() ->
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
+                                        "Empresa no encontrada"
+                                ));
+
+        String nif =
+                normalizarNif(request.getNif());
+
+        if (!nif.equalsIgnoreCase(
+                empresa.getNif()
+        )
+                && empresaRepository.existsByNif(nif)) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Ya existe una empresa con el NIF " + nif
             );
         }
 
-        empresa.setTelefono(request.getTelefono());
-        empresa.setEmail(request.getEmail());
-        empresa.setTipoImpuesto(request.getTipoImpuesto());
-        empresa.setActiva(true);
+        aplicarDatos(
+                empresa,
+                request,
+                nif
+        );
 
-        Empresa guardada = empresaRepository.saveAndFlush(empresa);
+        return convertir(
+                empresaRepository.saveAndFlush(empresa)
+        );
+    }
 
-        return convertir(guardada);
+    @Transactional
+    public EmpresaResponse cambiarActiva(
+            Long id,
+            boolean activa) {
+
+        Empresa empresa =
+                empresaRepository.findConBloqueo(id)
+                        .orElseThrow(() ->
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
+                                        "Empresa no encontrada"
+                                ));
+
+        empresa.setActiva(activa);
+
+        return convertir(
+                empresaRepository.saveAndFlush(empresa)
+        );
     }
 
     @Transactional(readOnly = true)
@@ -68,16 +117,78 @@ public class EmpresaService {
     @Transactional(readOnly = true)
     public EmpresaResponse obtener(Long id) {
 
-        Empresa empresa = empresaRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Empresa no encontrada"
-                ));
+        Empresa empresa =
+                empresaRepository.findById(id)
+                        .orElseThrow(() ->
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
+                                        "Empresa no encontrada"
+                                ));
 
         return convertir(empresa);
     }
 
-    private EmpresaResponse convertir(Empresa empresa) {
+    private void aplicarDatos(
+            Empresa empresa,
+            EmpresaRequest request,
+            String nif) {
+
+        empresa.setNif(nif);
+
+        empresa.setRazonSocial(
+                request.getRazonSocial().trim()
+        );
+
+        empresa.setNombreComercial(
+                request.getNombreComercial()
+        );
+
+        empresa.setDireccion(
+                request.getDireccion()
+        );
+
+        empresa.setCodigoPostal(
+                request.getCodigoPostal()
+        );
+
+        empresa.setMunicipio(
+                request.getMunicipio()
+        );
+
+        empresa.setProvincia(
+                request.getProvincia()
+        );
+
+        if (request.getCodigoPais() != null
+                && !request.getCodigoPais().isBlank()) {
+
+            empresa.setCodigoPais(
+                    request.getCodigoPais()
+                            .trim()
+                            .toUpperCase()
+            );
+        }
+
+        empresa.setTelefono(
+                request.getTelefono()
+        );
+
+        empresa.setEmail(
+                request.getEmail()
+        );
+
+        empresa.setTipoImpuesto(
+                request.getTipoImpuesto()
+        );
+    }
+
+    private String normalizarNif(String nif) {
+
+        return nif.trim().toUpperCase();
+    }
+
+    private EmpresaResponse convertir(
+            Empresa empresa) {
 
         return new EmpresaResponse(
                 empresa.getId(),

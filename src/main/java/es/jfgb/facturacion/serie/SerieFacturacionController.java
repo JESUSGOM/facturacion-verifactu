@@ -37,7 +37,9 @@ public class SerieFacturacionController {
     public List<SerieFacturacionResponse> listar(
             @PathVariable Long empresaId) {
 
-        return serieService.listar(empresaId);
+        return serieService.listar(
+                empresaId
+        );
     }
 
     @GetMapping("/{serieId}")
@@ -48,6 +50,33 @@ public class SerieFacturacionController {
         return serieService.obtener(
                 empresaId,
                 serieId
+        );
+    }
+
+    @PutMapping("/{serieId}")
+    public SerieFacturacionResponse modificar(
+            @PathVariable Long empresaId,
+            @PathVariable Long serieId,
+            @Valid @RequestBody
+            SerieFacturacionRequest request) {
+
+        return serieService.modificar(
+                empresaId,
+                serieId,
+                request
+        );
+    }
+
+    @PatchMapping("/{serieId}/activo")
+    public SerieFacturacionResponse cambiarActivo(
+            @PathVariable Long empresaId,
+            @PathVariable Long serieId,
+            @RequestParam("activo") boolean activo) {
+
+        return serieService.cambiarActiva(
+                empresaId,
+                serieId,
+                activo
         );
     }
 }

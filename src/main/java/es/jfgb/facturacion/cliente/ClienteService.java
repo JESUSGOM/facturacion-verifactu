@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class ClienteService {
@@ -24,82 +25,165 @@ public class ClienteService {
     }
 
     @Transactional
-    public ClienteResponse crear(Long empresaId, ClienteRequest request) {
+    public ClienteResponse crear(
+            Long empresaId,
+            ClienteRequest request) {
 
-        Empresa empresa = empresaRepository.findById(empresaId)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Empresa no encontrada"
-                ));
+        Empresa empresa = obtenerEmpresa(empresaId);
 
-        String nif = normalizarNif(request.getNif());
+        String nif =
+                normalizarNif(request.getNif());
 
-        if (nif != null &&
-                clienteRepository.existsByEmpresa_IdAndNifIgnoreCase(
-                        empresaId, nif)) {
-
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Ya existe un cliente con el NIF " + nif
-            );
-        }
+        comprobarNifDisponible(
+                empresaId,
+                nif,
+                null
+        );
 
         Cliente cliente = new Cliente();
 
         cliente.setEmpresa(empresa);
-        cliente.setNif(nif);
-        cliente.setNombre(request.getNombre().trim());
-        cliente.setNombreComercial(request.getNombreComercial());
-        cliente.setDireccion(request.getDireccion());
-        cliente.setCodigoPostal(request.getCodigoPostal());
-        cliente.setMunicipio(request.getMunicipio());
-        cliente.setProvincia(request.getProvincia());
 
-        if (request.getCodigoPais() != null
-                && !request.getCodigoPais().isBlank()) {
+        aplicarDatos(
+                cliente,
+                request,
+                nif
+        );
 
-            cliente.setCodigoPais(
-                    request.getCodigoPais().trim().toUpperCase()
-            );
-        }
-
-        cliente.setTelefono(request.getTelefono());
-        cliente.setEmail(request.getEmail());
         cliente.setActivo(true);
 
-        Cliente guardado = clienteRepository.saveAndFlush(cliente);
+        return convertir(
+                clienteRepository.saveAndFlush(cliente)
+        );
+    }
 
-        return convertir(guardado);
+    @Transactional
+    public ClienteResponse modificar(
+            Long empresaId,
+            Long clienteId,
+            ClienteRequest request) {
+
+        Cliente cliente =
+                clienteRepository
+                        .findByIdAndEmpresa_Id(
+                                clienteId,
+                                empresaId
+                        )
+                        .orElseThrow(() ->
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
+                                        "Cliente no encontrado"
+                                ));
+
+        String nif =
+                normalizarNif(request.getNif());
+
+        comprobarNifDisponible(
+                empresaId,
+                nif,
+                normalizarNif(cliente.getNif())
+        );
+
+        aplicarDatos(
+                cliente,
+                request,
+                nif
+        );
+
+        return convertir(
+                clienteRepository.saveAndFlush(cliente)
+        );
+    }
+
+    @Transactional
+    public ClienteResponse cambiarActivo(
+            Long empresaId,
+            Long clienteId,
+            boolean activo) {
+
+        Cliente cliente =
+                clienteRepository
+                        .findByIdAndEmpresa_Id(
+                                clienteId,
+                                empresaId
+                        )
+                        .orElseThrow(() ->
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
+                                        "Cliente no encontrado"
+                                ));
+
+        cliente.setActivo(activo);
+
+        return convertir(
+                clienteRepository.saveAndFlush(cliente)
+        );
     }
 
     @Transactional(readOnly = true)
-    public List<ClienteResponse> listar(Long empresaId) {
+    public List<ClienteResponse> listar(
+            Long empresaId) {
 
         comprobarEmpresa(empresaId);
 
         return clienteRepository
-                .findAllByEmpresa_IdOrderByNombreAsc(empresaId)
+                .findAllByEmpresa_IdOrderByNombreAsc(
+                        empresaId
+                )
                 .stream()
                 .map(this::convertir)
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public ClienteResponse obtener(Long empresaId, Long clienteId) {
+    public ClienteResponse obtener(
+            Long empresaId,
+            Long clienteId) {
 
-        Cliente cliente = clienteRepository
-                .findByIdAndEmpresa_Id(clienteId, empresaId)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Cliente no encontrado"
-                ));
+        Cliente cliente =
+                clienteRepository
+                        .findByIdAndEmpresa_Id(
+                                clienteId,
+                                empresaId
+                        )
+                        .orElseThrow(() ->
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
+                                        "Cliente no encontrado"
+                                ));
 
         return convertir(cliente);
     }
 
-    private void comprobarEmpresa(Long empresaId) {
+    private Empresa obtenerEmpresa(
+            Long empresaId) {
 
-        if (!empresaRepository.existsById(empresaId)) {
+        Empresa empresa =
+                empresaRepository
+                        .findById(empresaId)
+                        .orElseThrow(() ->
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
+                                        "Empresa no encontrada"
+                                ));
+
+        if (!empresa.isActiva()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "La empresa no está activa"
+            );
+        }
+
+        return empresa;
+    }
+
+    private void comprobarEmpresa(
+            Long empresaId) {
+
+        if (!empresaRepository.existsById(
+                empresaId
+        )) {
+
             throw new ResponseStatusException(
                     HttpStatus.NOT_FOUND,
                     "Empresa no encontrada"
@@ -107,16 +191,98 @@ public class ClienteService {
         }
     }
 
-    private String normalizarNif(String nif) {
+    private void comprobarNifDisponible(
+            Long empresaId,
+            String nifNuevo,
+            String nifActual) {
 
-        if (nif == null || nif.isBlank()) {
+        if (nifNuevo == null
+                || Objects.equals(
+                        nifNuevo,
+                        nifActual
+                )) {
+
+            return;
+        }
+
+        if (clienteRepository
+                .existsByEmpresa_IdAndNifIgnoreCase(
+                        empresaId,
+                        nifNuevo
+                )) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Ya existe un cliente con el NIF "
+                            + nifNuevo
+            );
+        }
+    }
+
+    private void aplicarDatos(
+            Cliente cliente,
+            ClienteRequest request,
+            String nif) {
+
+        cliente.setNif(nif);
+
+        cliente.setNombre(
+                request.getNombre().trim()
+        );
+
+        cliente.setNombreComercial(
+                request.getNombreComercial()
+        );
+
+        cliente.setDireccion(
+                request.getDireccion()
+        );
+
+        cliente.setCodigoPostal(
+                request.getCodigoPostal()
+        );
+
+        cliente.setMunicipio(
+                request.getMunicipio()
+        );
+
+        cliente.setProvincia(
+                request.getProvincia()
+        );
+
+        if (request.getCodigoPais() != null
+                && !request.getCodigoPais().isBlank()) {
+
+            cliente.setCodigoPais(
+                    request.getCodigoPais()
+                            .trim()
+                            .toUpperCase()
+            );
+        }
+
+        cliente.setTelefono(
+                request.getTelefono()
+        );
+
+        cliente.setEmail(
+                request.getEmail()
+        );
+    }
+
+    private String normalizarNif(
+            String nif) {
+
+        if (nif == null
+                || nif.isBlank()) {
+
             return null;
         }
 
         return nif.trim().toUpperCase();
     }
 
-    private ClienteResponse convertir(Cliente cliente) {
+    private ClienteResponse convertir(
+            Cliente cliente) {
 
         return new ClienteResponse(
                 cliente.getId(),

@@ -564,6 +564,12 @@ class FacturaServiceTest {
         );
 
         when(
+                empresa.isActiva()
+        ).thenReturn(
+                true
+        );
+
+        when(
                 cliente.getId()
         ).thenReturn(
                 10L
@@ -788,6 +794,11 @@ class FacturaServiceTest {
     @Test
     void emitirRechazaProductoDesactivadoAntesDeNumerar() {
 
+        Empresa empresa =
+                org.mockito.Mockito.mock(
+                        Empresa.class
+                );
+
         Cliente cliente =
                 org.mockito.Mockito.mock(
                         Cliente.class
@@ -804,6 +815,12 @@ class FacturaServiceTest {
                 );
 
         when(
+                empresa.isActiva()
+        ).thenReturn(
+                true
+        );
+
+        when(
                 cliente.isActivo()
         ).thenReturn(
                 true
@@ -818,7 +835,12 @@ class FacturaServiceTest {
         Factura factura =
                 new Factura();
 
-        factura.setCliente(
+
+        factura.setEmpresa(
+                empresa
+        );
+
+factura.setCliente(
                 cliente
         );
 

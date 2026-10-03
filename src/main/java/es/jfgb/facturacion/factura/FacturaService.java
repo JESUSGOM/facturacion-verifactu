@@ -62,6 +62,14 @@ public class FacturaService {
                                 "Empresa no encontrada"
                         ));
 
+
+        if (!empresa.isActiva()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "La empresa no está activa"
+            );
+        }
+
         Cliente cliente =
                 obtenerClienteActivo(
                         empresaId,
@@ -254,6 +262,16 @@ public class FacturaService {
                 factura,
                 "Solo se puede emitir una factura en estado BORRADOR"
         );
+
+
+        if (factura.getEmpresa() == null
+                || !factura.getEmpresa().isActiva()) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "La empresa no está activa"
+            );
+        }
 
         if (factura.getLineas() == null
                 || factura.getLineas().isEmpty()) {

@@ -12,7 +12,9 @@ public class EmpresaController {
 
     private final EmpresaService empresaService;
 
-    public EmpresaController(EmpresaService empresaService) {
+    public EmpresaController(
+            EmpresaService empresaService) {
+
         this.empresaService = empresaService;
     }
 
@@ -30,7 +32,31 @@ public class EmpresaController {
     }
 
     @GetMapping("/{id}")
-    public EmpresaResponse obtener(@PathVariable Long id) {
+    public EmpresaResponse obtener(
+            @PathVariable Long id) {
+
         return empresaService.obtener(id);
+    }
+
+    @PutMapping("/{id}")
+    public EmpresaResponse modificar(
+            @PathVariable Long id,
+            @Valid @RequestBody EmpresaRequest request) {
+
+        return empresaService.modificar(
+                id,
+                request
+        );
+    }
+
+    @PatchMapping("/{id}/activo")
+    public EmpresaResponse cambiarActivo(
+            @PathVariable Long id,
+            @RequestParam("activo") boolean activo) {
+
+        return empresaService.cambiarActiva(
+                id,
+                activo
+        );
     }
 }
