@@ -1,5 +1,7 @@
 package es.jfgb.facturacion.verifactu.aeat.soap;
 
+import es.gob.agenciatributaria.www2.static_files.common.internet.dep.aplicaciones.es.aeat.tike.cont.ws.consultalr.ConsultaFactuSistemaFacturacionType;
+import es.gob.agenciatributaria.www2.static_files.common.internet.dep.aplicaciones.es.aeat.tike.cont.ws.respuestaconsultalr.RespuestaConsultaFactuSistemaFacturacionType;
 import es.gob.agenciatributaria.www2.static_files.common.internet.dep.aplicaciones.es.aeat.tike.cont.ws.respuestasuministro.RespuestaRegFactuSistemaFacturacionType;
 import es.gob.agenciatributaria.www2.static_files.common.internet.dep.aplicaciones.es.aeat.tike.cont.ws.sistemafacturacion.SfPortTypeVerifactu;
 import es.gob.agenciatributaria.www2.static_files.common.internet.dep.aplicaciones.es.aeat.tike.cont.ws.suministroinformacion.CabeceraType;
@@ -41,11 +43,11 @@ public class AeatSoapPruebasGateway
         }
 
         /*
-         * La operación se genera ahora en estilo BARE.
+         * La operacion se genera en estilo BARE.
          *
-         * Por tanto construimos el documento completo
-         * RegFactuSistemaFacturacion y lo entregamos al
-         * puerto SOAP como un único argumento.
+         * Construimos el documento completo
+         * RegFactuSistemaFacturacion y lo entregamos
+         * al puerto SOAP como un unico argumento.
          */
         RegFactuSistemaFacturacion peticion =
                 new RegFactuSistemaFacturacion();
@@ -66,9 +68,9 @@ public class AeatSoapPruebasGateway
                 );
 
         /*
-         * Si el runtime devolviera null, dejamos que
-         * AeatVerifactuProvider lo trate posteriormente
-         * como resultado incierto.
+         * Si el runtime devuelve null,
+         * AeatVerifactuProvider lo tratara
+         * como un resultado incierto.
          */
         if (respuesta == null) {
             return null;
@@ -81,6 +83,28 @@ public class AeatSoapPruebasGateway
                 respuesta.getTiempoEsperaEnvio(),
                 respuesta.getEstadoEnvio(),
                 respuesta.getRespuestaLinea()
+        );
+    }
+
+    @Override
+    public RespuestaConsultaFactuSistemaFacturacionType consultar(
+            ConsultaFactuSistemaFacturacionType consulta) {
+
+        if (consulta == null) {
+            throw new IllegalArgumentException(
+                    "La consulta AEAT no puede ser nula"
+            );
+        }
+
+        /*
+         * IMPORTANTE:
+         *
+         * Este metodo no decide que consultar ni interpreta
+         * el resultado. Su unica responsabilidad es delegar
+         * en el puerto SOAP generado por el WSDL.
+         */
+        return port.consultaFactuSistemaFacturacion(
+                consulta
         );
     }
 }
