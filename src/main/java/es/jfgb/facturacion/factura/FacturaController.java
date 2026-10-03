@@ -34,7 +34,9 @@ public class FacturaController {
     public List<FacturaResponse> listar(
             @PathVariable Long empresaId) {
 
-        return facturaService.listar(empresaId);
+        return facturaService.listar(
+                empresaId
+        );
     }
 
     @GetMapping("/{facturaId}")
@@ -43,6 +45,31 @@ public class FacturaController {
             @PathVariable Long facturaId) {
 
         return facturaService.obtener(
+                empresaId,
+                facturaId
+        );
+    }
+
+    @PutMapping("/{facturaId}")
+    public FacturaResponse modificarBorrador(
+            @PathVariable Long empresaId,
+            @PathVariable Long facturaId,
+            @Valid @RequestBody FacturaRequest request) {
+
+        return facturaService.modificarBorrador(
+                empresaId,
+                facturaId,
+                request
+        );
+    }
+
+    @DeleteMapping("/{facturaId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void eliminarBorrador(
+            @PathVariable Long empresaId,
+            @PathVariable Long facturaId) {
+
+        facturaService.eliminarBorrador(
                 empresaId,
                 facturaId
         );
