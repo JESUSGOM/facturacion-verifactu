@@ -76,8 +76,8 @@ public class ServicioReconciliacionVerifactu {
 
             throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE,
-                    "La consulta VERI*FACTU está "
-                            + "deshabilitada por configuración"
+                    "La consulta VERI*FACTU estÃƒÂ¡ "
+                            + "deshabilitada por configuraciÃƒÂ³n"
             );
         }
 
@@ -133,7 +133,7 @@ public class ServicioReconciliacionVerifactu {
          * cuando AEAT contiene exactamente la factura y
          * su estado significa que permanece almacenada.
          *
-         * NO_ENCONTRADO, AMBIGUO, ANULADA o una respuesta
+         * NO_ENCONTRADO, AMBIGUO, ANULADO o una respuesta
          * no concluyente mantienen INCIERTO.
          */
         if (resultado.estado()
@@ -173,7 +173,7 @@ public class ServicioReconciliacionVerifactu {
                         );
 
         return normalizado.equals(
-                "CORRECTA"
+                "CORRECTO"
         )
                 || normalizado.equals(
                 "ACEPTADACONERRORES"

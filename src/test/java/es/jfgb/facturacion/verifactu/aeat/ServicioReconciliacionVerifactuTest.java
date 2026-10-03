@@ -19,7 +19,7 @@ import static org.mockito.Mockito.when;
 class ServicioReconciliacionVerifactuTest {
 
     @Test
-    void correctaResuelveInciertoComoAceptado() {
+    void correctoResuelveInciertoComoAceptado() {
 
         EstadoReconciliacionVerifactuService estadoService =
                 mock(
@@ -52,7 +52,7 @@ class ServicioReconciliacionVerifactuTest {
 
         ResultadoConsultaRegistroAeat resultado =
                 ResultadoConsultaRegistroAeat.encontrado(
-                        "CORRECTA",
+                        "CORRECTO",
                         null,
                         null
                 );
@@ -145,12 +145,12 @@ class ServicioReconciliacionVerifactuTest {
     }
 
     @Test
-    void anuladaNoCambiaElEstadoLocal() {
+    void anuladoNoCambiaElEstadoLocal() {
 
         comprobarQueNoResuelveAutomaticamente(
                 ResultadoConsultaRegistroAeat
                         .encontrado(
-                                "ANULADA",
+                                "ANULADO",
                                 null,
                                 null
                         )
