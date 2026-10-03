@@ -1,0 +1,264 @@
+### Alta de empresa 1
+POST http://localhost:8081/api/empresas
+Content-Type: application/json
+
+{
+  "nif": "B12345678",
+  "razonSocial": "Empresa de Prueba SL",
+  "nombreComercial": "Empresa Prueba",
+  "direccion": "Calle de Prueba 1",
+  "codigoPostal": "38001",
+  "municipio": "Santa Cruz de Tenerife",
+  "provincia": "Santa Cruz de Tenerife",
+  "codigoPais": "ES",
+  "telefono": "922000000",
+  "email": "prueba@example.com",
+  "tipoImpuesto": "IGIC"
+}
+
+### Listar empresas
+GET http://localhost:8081/api/empresas
+
+### Obtener empresa 1
+GET http://localhost:8081/api/empresas/1
+
+### Crear segunda empresa
+POST http://localhost:8081/api/empresas
+Content-Type: application/json
+
+{
+  "nif": "B87654321",
+  "razonSocial": "Segunda Empresa SL",
+  "nombreComercial": "Segunda Empresa",
+  "direccion": "Avenida de Prueba 20",
+  "codigoPostal": "38003",
+  "municipio": "Santa Cruz de Tenerife",
+  "provincia": "Santa Cruz de Tenerife",
+  "codigoPais": "ES",
+  "telefono": "922000002",
+  "email": "segunda@example.com",
+  "tipoImpuesto": "IGIC"
+}
+
+### Obtener empresa 2
+GET http://localhost:8081/api/empresas/2
+
+### PRUEBA AISLAMIENTO - cliente 1 no pertenece a empresa 2
+GET http://localhost:8081/api/empresas/2/clientes/1
+
+### Listar registros de facturación de la empresa 1
+GET http://localhost:8081/api/empresas/1/registros-facturacion
+
+### Obtener registro FAC-4
+GET http://localhost:8081/api/empresas/1/registros-facturacion/2
+
+### Enviar FAC-3 al proveedor simulado
+POST http://localhost:8081/api/empresas/1/registros-facturacion/1/enviar
+
+### Enviar FAC-4 al proveedor simulado
+POST http://localhost:8081/api/empresas/1/registros-facturacion/2/enviar
+
+### Comprobar FAC antes de emitir factura 5
+GET http://localhost:8081/api/empresas/1/series-facturacion/
+
+### Emitir factura 5
+POST http://localhost:8081/api/empresas/1/facturas/5/emitir
+
+### Obtener registro FAC-5 antes de enviarlo
+GET http://localhost:8081/api/empresas/1/registros-facturacion/3
+
+### Enviar FAC-5 con el nuevo flujo
+POST http://localhost:8081/api/empresas/1/registros-facturacion/3/enviar
+
+### Simular fallo al enviar FAC-6
+POST http://localhost:8081/api/empresas/1/registros-facturacion/4/enviar
+
+### Comprobar FAC-6 después del fallo simulado
+GET http://localhost:8081/api/empresas/1/registros-facturacion/4
+
+### Crear nueva factura en BORRADOR
+POST http://localhost:8081/api/empresas/1/facturas
+Content-Type: application/json
+
+{
+  "clienteId": 1,
+  "serieId": 1,
+  "observaciones": "Prueba historial ERROR y reintento VERI*FACTU",
+  "lineas": [
+    {
+      "productoId": 2,
+      "cantidad": 2
+    }
+  ]
+}
+
+### Emitir factura 7
+POST http://localhost:8081/api/empresas/1/facturas/7/emitir
+
+### Enviar2
+POST http://localhost:8081/api/empresas/1/registros-facturacion/5/enviar
+
+### Comprobar 8
+POST http://localhost:8081/api/empresas/1/facturas/8/emitir
+
+### Envíar 6
+POST http://localhost:8081/api/empresas/1/registros-facturacion/6/enviar
+
+### Comprobar
+GET http://localhost:8081/api/empresas/1/registros-facturacion/6
+
+### Emitir 9
+POST http://localhost:8081/api/empresas/1/facturas/9/emitir
+
+### Enviar 7
+POST http://localhost:8081/api/empresas/1/registros-facturacion/7/enviar
+
+### Emitir 10
+POST http://localhost:8081/api/empresas/1/facturas/10/emitir
+
+### Regestros facturacion 8 enviar
+POST http://localhost:8081/api/empresas/1/registros-facturacion/8/enviar
+
+###Registros facturacion 8 intentos
+GET http://localhost:8081/api/empresas/2/registros-facturacion/8/intentos
+
+### Prueba recuperación ENVIANDO a INCIERTO
+POST http://localhost:8081/api/empresas/1/facturas
+Content-Type: application/json
+
+{
+  "clienteId": 1,
+  "serieId": 1,
+  "observaciones": "Prueba recuperación ENVIANDO a INCIERTO",
+  "lineas": [
+    {
+      "productoId": 2,
+      "cantidad": 2
+    }
+  ]
+}
+
+### Prueba Emisión"3456 7890'¡qw er tyuiop`+çasd
+POST http://localhost:8081/api/empresas/1/facturas/11/emitir
+
+### localizar el RegistroFacturacion creado para FAC-11
+GET http://localhost:8081/api/empresas/1/registros-facturacion
+
+### Empresa 1 Registros 9 Iniciar-sin-enviar
+POST http://localhost:8081/api/dev/verifactu/empresas/1/registros/9/iniciar-sin-enviar
+
+### Registro inicial
+GET http://localhost:8081/api/empresas/1/registros-facturacion/9
+
+### Registro final
+GET http://localhost:8081/api/empresas/1/registros-facturacion/9/intentos
+
+### Iniciamos recuperación tras 5 minutos.
+POST http://localhost:8081/api/dev/verifactu/recuperar-envios-antiguos
+
+### Reenviar FAC-11 por endpoint normal
+POST http://localhost:8081/api/empresas/1/registros-facturacion/9/enviar
+
+### Crear factura con ID=12
+POST http://localhost:8081/api/empresas/1/facturas
+Content-Type: application/json
+
+{
+  "clienteId": 1,
+  "serieId": 1,
+  "observaciones": "Prueba envío normal tras separar transacciones",
+  "lineas": [
+    {
+      "productoId": 2,
+      "cantidad": 1
+    }
+  ]
+}
+
+### Emitir factura 12
+POST http://localhost:8081/api/empresas/1/facturas/12/emitir
+
+### Enviar factura 12 con Id=10
+POST http://localhost:8081/api/empresas/1/registros-facturacion/10/enviar
+
+### Comprobar intentos facturacion empresa 1 id = 10
+GET http://localhost:8081/api/empresas/1/registros-facturacion/10/intentos
+
+### Nueva factura de prueba
+POST http://localhost:8081/api/empresas/1/facturas
+Content-Type: application/json
+
+{
+  "clienteId": 1,
+  "serieId": 1,
+  "observaciones": "Prueba resultado incierto del proveedor",
+  "lineas": [
+    {
+      "productoId": 2,
+      "cantidad": 1
+    }
+  ]
+}
+
+
+### Emitir epresa 1 factura 13
+POST http://localhost:8081/api/empresas/1/facturas/13/emitir
+
+###Enviar empresa 1 factura 11
+POST http://localhost:8081/api/empresas/1/registros-facturacion/11/enviar
+
+###Comprobar Empresa 1 factura 11
+GET http://localhost:8081/api/empresas/1/registros-facturacion/11
+
+### Ver intentos empresa 1 factura 11
+GET http://localhost:8081/api/empresas/1/registros-facturacion/11/intentos
+
+
+###Crear nueva factura
+POST http://localhost:8081/api/empresas/1/facturas
+Content-Type: application/json
+
+{
+  "clienteId": 1,
+  "serieId": 1,
+  "observaciones": "Prueba recuperación automática scheduler",
+  "lineas": [
+    {
+      "productoId": 2,
+      "cantidad": 1
+    }
+  ]
+}
+
+###Emitir factura con id = 14
+POST http://localhost:8081/api/empresas/1/facturas/14/emitir
+
+
+### Iniciar sin enviar
+POST http://localhost:8081/api/dev/verifactu/empresas/1/registros/12/iniciar-sin-enviar
+
+### Comprobar tras 6 minutos
+GET http://localhost:8081/api/empresas/1/registros-facturacion/12
+
+
+### Comprobar anterior intentos
+GET http://localhost:8081/api/empresas/1/registros-facturacion/12/intentos
+
+### Prueba verificacion Gombeth Factura.
+POST http://localhost:8081/api/empresas/1/facturas
+Content-Type: application/json
+
+{
+  "clienteId": 1,
+  "serieId": 1,
+  "observaciones": "Prueba VERI*FACTU - Gombeth Factura",
+  "lineas": [
+    {
+      "productoId": 1,
+      "cantidad": 1
+    }
+  ]
+}
+
+### Emitir lo anterior
+POST http://localhost:8081/api/empresas/1/facturas/15/emitir

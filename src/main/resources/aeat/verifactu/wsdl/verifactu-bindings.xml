@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<jaxws:bindings
+        xmlns:jaxws="https://jakarta.ee/xml/ns/jaxws"
+        xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+        wsdlLocation="SistemaFacturacion.wsdl"
+        version="3.0">
+
+    <jaxws:bindings
+            node="wsdl:definitions/wsdl:portType[@name='sfPortTypeVerifactu']">
+
+        <jaxws:enableWrapperStyle>false</jaxws:enableWrapperStyle>
+
+    </jaxws:bindings>
+
+</jaxws:bindings>

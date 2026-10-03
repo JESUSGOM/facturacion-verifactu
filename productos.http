@@ -1,0 +1,36 @@
+### Crear servicio en empresa 1
+POST http://localhost:8081/api/empresas/1/productos
+Content-Type: application/json
+
+{
+  "codigo": "SERV-001",
+  "tipo": "SERVICIO",
+  "nombre": "Servicio de consultoría",
+  "descripcion": "Servicio profesional de consultoría",
+  "precio": 60.0000,
+  "tipoImpuesto": "IGIC",
+  "porcentajeImpuesto": 7.00
+}
+
+### Crear producto en empresa 1
+POST http://localhost:8081/api/empresas/1/productos
+Content-Type: application/json
+
+{
+  "codigo": "PROD-001",
+  "tipo": "PRODUCTO",
+  "nombre": "Material de oficina",
+  "descripcion": "Material de oficina de prueba",
+  "precio": 12.5000,
+  "tipoImpuesto": "IGIC",
+  "porcentajeImpuesto": 7.00
+}
+
+### Listar productos y servicios de empresa 1
+GET http://localhost:8081/api/empresas/1/productos
+
+### Obtener producto o servicio 1 de empresa 1
+GET http://localhost:8081/api/empresas/1/productos/1
+
+### PRUEBA AISLAMIENTO - producto 1 no pertenece a empresa 2
+GET http://localhost:8081/api/empresas/2/productos/1

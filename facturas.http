@@ -1,0 +1,137 @@
+### Crear primera factura BORRADOR
+POST http://localhost:8081/api/empresas/1/facturas
+Content-Type: application/json
+
+{
+  "clienteId": 1,
+  "serieId": 1,
+  "observaciones": "Primera factura de prueba",
+  "lineas": [
+    {
+      "productoId": 2,
+      "cantidad": 2
+    }
+  ]
+}
+
+### Listar facturas empresa 1
+GET http://localhost:8081/api/empresas/1/facturas
+
+### Obtener factura 1
+GET http://localhost:8081/api/empresas/1/facturas/1
+
+### PRUEBA AISLAMIENTO
+GET http://localhost:8081/api/empresas/2/facturas/1
+
+### Comprobar serie FAC
+GET http://localhost:8081/api/empresas/1/series-facturacion/1
+
+### Emitir factura 1
+POST http://localhost:8081/api/empresas/1/facturas/1/emitir
+
+### Crear segunda factura BORRADOR
+POST http://localhost:8081/api/empresas/1/facturas
+Content-Type: application/json
+
+{
+  "clienteId": 1,
+  "serieId": 1,
+  "observaciones": "Segunda factura de prueba",
+  "lineas": [
+    {
+      "productoId": 1,
+      "cantidad": 1
+    }
+  ]
+}
+
+### Comprobar FAC antes de emitir la segunda factura
+GET http://localhost:8081/api/empresas/1/series-facturacion/1
+
+### Emitir factura 2
+POST http://localhost:8081/api/empresas/1/facturas/2/emitir
+
+### Comprobar FAC después de emitir factura 2
+GET http://localhost:8081/api/empresas/1/series-facturacion/1
+
+### Obtener factura 2
+GET http://localhost:8081/api/empresas/1/facturas/2
+
+### Crear factura 3 para probar registro de facturación
+POST http://localhost:8081/api/empresas/1/facturas
+Content-Type: application/json
+
+{
+  "clienteId": 1,
+  "serieId": 1,
+  "observaciones": "Factura de prueba para registro VeriFactu",
+  "lineas": [
+    {
+      "productoId": 1,
+      "cantidad": 1
+    }
+  ]
+}
+
+### Emitir factura 3
+POST http://localhost:8081/api/empresas/1/facturas/3/emitir
+
+### Crear factura 4 para probar el encadenamiento
+POST http://localhost:8081/api/empresas/1/facturas
+Content-Type: application/json
+
+{
+  "clienteId": 1,
+  "serieId": 1,
+  "observaciones": "Segunda factura para probar encadenamiento VeriFactu",
+  "lineas": [
+    {
+      "productoId": 2,
+      "cantidad": 3
+    }
+  ]
+}
+
+### Emitir factura 4
+POST http://localhost:8081/api/empresas/1/facturas/4/emitir
+
+### Comprobar FAC después de emitir factura 4
+GET http://localhost:8081/api/empresas/1/series-facturacion/1
+
+### Crear factura 5 para probar el nuevo flujo de envío
+POST http://localhost:8081/api/empresas/1/facturas
+Content-Type: application/json
+
+{
+  "clienteId": 1,
+  "serieId": 1,
+  "observaciones": "Prueba del envío VeriFactu sin transacción durante la comunicación",
+  "lineas": [
+    {
+      "productoId": 1,
+      "cantidad": 1
+    }
+  ]
+}
+
+### Crear factura 6 para probar fallo del proveedor
+POST http://localhost:8081/api/empresas/1/facturas
+Content-Type: application/json
+
+{
+  "clienteId": 1,
+  "serieId": 1,
+  "observaciones": "Prueba de error de comunicación VeriFactu",
+  "lineas": [
+    {
+      "productoId": 2,
+      "cantidad": 2
+    }
+  ]
+}
+
+### Emitir factura 6
+POST http://localhost:8081/api/empresas/1/facturas/6/emitir
+
+### Obtener registro FAC-6 antes de simular el error
+GET http://localhost:8081/api/empresas/1/registros-facturacion/4

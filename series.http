@@ -1,0 +1,44 @@
+### Crear serie FAC en empresa 1
+POST http://localhost:8081/api/empresas/1/series-facturacion
+Content-Type: application/json
+
+{
+  "codigo": "FAC",
+  "descripcion": "Facturas ordinarias"
+}
+
+### Crear serie RECT en empresa 1
+POST http://localhost:8081/api/empresas/1/series-facturacion
+Content-Type: application/json
+
+{
+  "codigo": "RECT",
+  "descripcion": "Facturas rectificativas"
+}
+
+### Listar series de empresa 1
+GET http://localhost:8081/api/empresas/1/series-facturacion
+
+### Obtener serie 1 de empresa 1
+GET http://localhost:8081/api/empresas/1/series-facturacion/1
+
+### PRUEBA AISLAMIENTO - serie 1 no pertenece a empresa 2
+GET http://localhost:8081/api/empresas/2/series-facturacion/1
+
+### PRUEBA DUPLICADO FAC
+POST http://localhost:8081/api/empresas/1/series-facturacion
+Content-Type: application/json
+
+{
+  "codigo": "FAC",
+  "descripcion": "Otra serie FAC"
+}
+
+### Crear serie RECT en empresa 1
+POST http://localhost:8081/api/empresas/1/series-facturacion
+Content-Type: application/json
+
+{
+  "codigo": "RECT",
+  "descripcion": "Facturas rectificativas"
+}

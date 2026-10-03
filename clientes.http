@@ -1,0 +1,25 @@
+### Crear cliente en empresa 1
+POST http://localhost:8081/api/empresas/1/clientes
+Content-Type: application/json
+
+{
+  "nif": "78543210A",
+  "nombre": "Cliente de Prueba",
+  "nombreComercial": "Cliente Prueba",
+  "direccion": "Calle Castillo 10",
+  "codigoPostal": "38002",
+  "municipio": "Santa Cruz de Tenerife",
+  "provincia": "Santa Cruz de Tenerife",
+  "codigoPais": "ES",
+  "telefono": "600000001",
+  "email": "cliente@example.com"
+}
+
+### Listar clientes de empresa 1
+GET http://localhost:8081/api/empresas/1/clientes
+
+### Obtener cliente 1 de empresa 1
+GET http://localhost:8081/api/empresas/1/clientes/1
+
+### PRUEBA AISLAMIENTO - cliente 1 no pertenece a empresa 2
+GET http://localhost:8081/api/empresas/2/clientes/1

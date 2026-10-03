@@ -1,0 +1,3 @@
+ALTER TABLE clientes
+    CHANGE COLUMN razon_social nombre VARCHAR(150) NOT NULL,
+    MODIFY COLUMN nif VARCHAR(20) NULL;
