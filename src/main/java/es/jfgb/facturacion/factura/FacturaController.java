@@ -1,7 +1,10 @@
 package es.jfgb.facturacion.factura;
 
 import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -12,10 +15,17 @@ public class FacturaController {
 
     private final FacturaService facturaService;
 
-    public FacturaController(
-            FacturaService facturaService) {
+    private final FacturaPdfService facturaPdfService;
 
-        this.facturaService = facturaService;
+    public FacturaController(
+            FacturaService facturaService,
+            FacturaPdfService facturaPdfService) {
+
+        this.facturaService =
+                facturaService;
+
+        this.facturaPdfService =
+                facturaPdfService;
     }
 
     @PostMapping
@@ -84,5 +94,43 @@ public class FacturaController {
                 empresaId,
                 facturaId
         );
+    }
+
+    @GetMapping(
+            value = "/{facturaId}/pdf",
+            produces = MediaType.APPLICATION_PDF_VALUE
+    )
+    public ResponseEntity<byte[]> descargarPdf(
+            @PathVariable Long empresaId,
+            @PathVariable Long facturaId) {
+
+        byte[] pdf =
+                facturaPdfService.generar(
+                        empresaId,
+                        facturaId
+                );
+
+        String nombreArchivo =
+                "factura-"
+                        + facturaId
+                        + ".pdf";
+
+        return ResponseEntity
+                .ok()
+                .contentType(
+                        MediaType.APPLICATION_PDF
+                )
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "inline; filename=\""
+                                + nombreArchivo
+                                + "\""
+                )
+                .contentLength(
+                        pdf.length
+                )
+                .body(
+                        pdf
+                );
     }
 }

@@ -81,6 +81,36 @@ public class Factura {
     @Column(name = "cliente_codigo_pais", length = 2)
     private String clienteCodigoPais;
 
+    /*
+     * Snapshot historico del emisor.
+     *
+     * Se rellena exclusivamente al emitir la factura.
+     * De esta forma una modificacion posterior de Empresa
+     * no altera la representacion de una factura ya emitida.
+     */
+    @Column(name = "empresa_nif", length = 20)
+    private String empresaNif;
+
+    @Column(name = "empresa_razon_social", length = 150)
+    private String empresaRazonSocial;
+
+    @Column(name = "empresa_nombre_comercial", length = 150)
+    private String empresaNombreComercial;
+
+    @Column(name = "empresa_direccion", length = 200)
+    private String empresaDireccion;
+
+    @Column(name = "empresa_codigo_postal", length = 10)
+    private String empresaCodigoPostal;
+
+    @Column(name = "empresa_municipio", length = 100)
+    private String empresaMunicipio;
+
+    @Column(name = "empresa_provincia", length = 100)
+    private String empresaProvincia;
+
+    @Column(name = "empresa_codigo_pais", length = 2)
+    private String empresaCodigoPais;
     @Column(name = "fecha_creacion", nullable = false, updatable = false)
     private Instant fechaCreacion;
 
@@ -277,6 +307,84 @@ public class Factura {
         this.clienteCodigoPais = clienteCodigoPais;
     }
 
+    public String getEmpresaNif() {
+        return empresaNif;
+    }
+
+    public void setEmpresaNif(
+            String empresaNif) {
+        this.empresaNif = empresaNif;
+    }
+
+    public String getEmpresaRazonSocial() {
+        return empresaRazonSocial;
+    }
+
+    public void setEmpresaRazonSocial(
+            String empresaRazonSocial) {
+        this.empresaRazonSocial =
+                empresaRazonSocial;
+    }
+
+    public String getEmpresaNombreComercial() {
+        return empresaNombreComercial;
+    }
+
+    public void setEmpresaNombreComercial(
+            String empresaNombreComercial) {
+        this.empresaNombreComercial =
+                empresaNombreComercial;
+    }
+
+    public String getEmpresaDireccion() {
+        return empresaDireccion;
+    }
+
+    public void setEmpresaDireccion(
+            String empresaDireccion) {
+        this.empresaDireccion =
+                empresaDireccion;
+    }
+
+    public String getEmpresaCodigoPostal() {
+        return empresaCodigoPostal;
+    }
+
+    public void setEmpresaCodigoPostal(
+            String empresaCodigoPostal) {
+        this.empresaCodigoPostal =
+                empresaCodigoPostal;
+    }
+
+    public String getEmpresaMunicipio() {
+        return empresaMunicipio;
+    }
+
+    public void setEmpresaMunicipio(
+            String empresaMunicipio) {
+        this.empresaMunicipio =
+                empresaMunicipio;
+    }
+
+    public String getEmpresaProvincia() {
+        return empresaProvincia;
+    }
+
+    public void setEmpresaProvincia(
+            String empresaProvincia) {
+        this.empresaProvincia =
+                empresaProvincia;
+    }
+
+    public String getEmpresaCodigoPais() {
+        return empresaCodigoPais;
+    }
+
+    public void setEmpresaCodigoPais(
+            String empresaCodigoPais) {
+        this.empresaCodigoPais =
+                empresaCodigoPais;
+    }
     public Instant getFechaCreacion() {
         return fechaCreacion;
     }

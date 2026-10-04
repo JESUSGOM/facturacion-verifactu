@@ -14,7 +14,9 @@ public interface RegistroFacturacionRepository
         extends JpaRepository<RegistroFacturacion, Long> {
 
     List<RegistroFacturacion>
-    findAllByEmpresa_IdOrderByIdAsc(Long empresaId);
+    findAllByEmpresa_IdOrderByIdAsc(
+            Long empresaId
+    );
 
     Optional<RegistroFacturacion>
     findByIdAndEmpresa_Id(
@@ -30,6 +32,13 @@ public interface RegistroFacturacionRepository
 
     boolean existsByFactura_IdAndTipoRegistro(
             Long facturaId,
+            TipoRegistroFacturacion tipoRegistro
+    );
+
+    Optional<RegistroFacturacion>
+    findByFactura_IdAndEmpresa_IdAndTipoRegistro(
+            Long facturaId,
+            Long empresaId,
             TipoRegistroFacturacion tipoRegistro
     );
 
@@ -60,10 +69,10 @@ public interface RegistroFacturacionRepository
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
-    SELECT r
-    FROM RegistroFacturacion r
-    WHERE r.id = :registroId
-    """)
+        SELECT r
+        FROM RegistroFacturacion r
+        WHERE r.id = :registroId
+        """)
     Optional<RegistroFacturacion> findConBloqueoPorId(
             @Param("registroId") Long registroId
     );

@@ -357,6 +357,18 @@ public class FacturaService {
                 EstadoFactura.EMITIDA
         );
 
+        /*
+         * Snapshot historico del emisor.
+         *
+         * Desde este momento la representacion
+         * de la factura deja de depender de cambios
+         * posteriores en la entidad Empresa.
+         */
+        copiarDatosEmpresa(
+                factura,
+                factura.getEmpresa()
+        );
+
         serieRepository.save(
                 serie
         );
@@ -378,6 +390,49 @@ public class FacturaService {
 
         return convertir(
                 emitida
+        );
+    }
+
+    private void copiarDatosEmpresa(
+            Factura factura,
+            Empresa empresa) {
+
+        if (empresa == null) {
+            throw new IllegalStateException(
+                    "La factura no tiene empresa emisora"
+            );
+        }
+
+        factura.setEmpresaNif(
+                empresa.getNif()
+        );
+
+        factura.setEmpresaRazonSocial(
+                empresa.getRazonSocial()
+        );
+
+        factura.setEmpresaNombreComercial(
+                empresa.getNombreComercial()
+        );
+
+        factura.setEmpresaDireccion(
+                empresa.getDireccion()
+        );
+
+        factura.setEmpresaCodigoPostal(
+                empresa.getCodigoPostal()
+        );
+
+        factura.setEmpresaMunicipio(
+                empresa.getMunicipio()
+        );
+
+        factura.setEmpresaProvincia(
+                empresa.getProvincia()
+        );
+
+        factura.setEmpresaCodigoPais(
+                empresa.getCodigoPais()
         );
     }
 

@@ -122,6 +122,20 @@
             <scope>test</scope>
         </dependency>
 
+
+        <!-- Generación de PDF de facturas -->
+        <dependency>
+            <groupId>com.github.librepdf</groupId>
+            <artifactId>openpdf</artifactId>
+            <version>3.0.5</version>
+        </dependency>
+
+        <!-- Generación del QR tributario -->
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>core</artifactId>
+            <version>3.5.4</version>
+        </dependency>
     </dependencies>
 
     <build>
