@@ -284,6 +284,9 @@ class FacturaPdfServiceTest {
                         )
                         : null,
 
+                null,
+                null,
+
                 List.of()
         );
     }

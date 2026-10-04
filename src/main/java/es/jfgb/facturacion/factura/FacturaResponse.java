@@ -34,6 +34,9 @@ public record FacturaResponse(
         Instant fechaModificacion,
         Instant fechaEmision,
 
+        Instant fechaAnulacion,
+        String motivoAnulacion,
+
         List<FacturaLineaResponse> lineas
 ) {
 }

@@ -182,6 +182,9 @@ class FacturaPdfAnuladaTest {
                         "2026-10-04T06:02:00Z"
                 ),
 
+                null,
+                null,
+
                 List.of()
         );
     }

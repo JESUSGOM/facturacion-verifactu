@@ -936,6 +936,9 @@ public class FacturaService {
                 factura.getFechaModificacion(),
                 factura.getFechaEmision(),
 
+                factura.getFechaAnulacion(),
+                factura.getMotivoAnulacion(),
+
                 lineas
         );
     }
