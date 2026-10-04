@@ -66,7 +66,7 @@ public class FacturaService {
         if (!empresa.isActiva()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "La empresa no está activa"
+                    "La empresa no estÃ¡ activa"
             );
         }
 
@@ -153,11 +153,11 @@ public class FacturaService {
                 );
 
         /*
-         * Las líneas emitidas nunca pasan por aquí.
+         * Las lÃ­neas emitidas nunca pasan por aquÃ­.
          *
          * Al tratarse de un BORRADOR podemos reemplazar
-         * íntegramente sus líneas. orphanRemoval=true
-         * eliminará las anteriores al hacer flush.
+         * Ã­ntegramente sus lÃ­neas. orphanRemoval=true
+         * eliminarÃ¡ las anteriores al hacer flush.
          */
         factura.getLineas().clear();
 
@@ -247,9 +247,9 @@ public class FacturaService {
             Long facturaId) {
 
         /*
-         * Bloqueamos también la factura.
+         * Bloqueamos tambiÃ©n la factura.
          *
-         * Así dos peticiones concurrentes no pueden
+         * AsÃ­ dos peticiones concurrentes no pueden
          * emitir el mismo borrador al mismo tiempo.
          */
         Factura factura =
@@ -269,7 +269,7 @@ public class FacturaService {
 
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "La empresa no está activa"
+                    "La empresa no estÃ¡ activa"
             );
         }
 
@@ -278,7 +278,7 @@ public class FacturaService {
 
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "No se puede emitir una factura sin líneas"
+                    "No se puede emitir una factura sin lÃ­neas"
             );
         }
 
@@ -294,7 +294,7 @@ public class FacturaService {
 
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "El cliente de la factura no está activo"
+                    "El cliente de la factura no estÃ¡ activo"
             );
         }
 
@@ -323,14 +323,14 @@ public class FacturaService {
                         .orElseThrow(() ->
                                 new ResponseStatusException(
                                         HttpStatus.NOT_FOUND,
-                                        "Serie de facturación no encontrada"
+                                        "Serie de facturaciÃ³n no encontrada"
                                 ));
 
         if (!serie.isActiva()) {
 
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "La serie de facturación no está activa"
+                    "La serie de facturaciÃ³n no estÃ¡ activa"
             );
         }
 
@@ -379,10 +379,10 @@ public class FacturaService {
                 );
 
         /*
-         * La creación del registro VERI*FACTU continúa
-         * dentro de esta misma transacción.
+         * La creaciÃ³n del registro VERI*FACTU continÃºa
+         * dentro de esta misma transacciÃ³n.
          *
-         * No realiza ningún envío a AEAT.
+         * No realiza ningÃºn envÃ­o a AEAT.
          */
         registroFacturacionService.crearAlta(
                 emitida
@@ -669,6 +669,15 @@ public class FacturaService {
                     precioUnitario
             );
 
+        /*
+         * El circuito ordinario solo genera importes positivos.
+         * Las disminuciones se habilitaran exclusivamente
+         * mediante el circuito especifico de rectificativas.
+         */
+        linea.setSigno(
+                1
+        );
+
             linea.setTipoImpuesto(
                     producto.getTipoImpuesto()
             );
@@ -771,7 +780,7 @@ public class FacturaService {
 
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "El cliente no está activo"
+                    "El cliente no estÃ¡ activo"
             );
         }
 
@@ -791,14 +800,14 @@ public class FacturaService {
                         .orElseThrow(() ->
                                 new ResponseStatusException(
                                         HttpStatus.NOT_FOUND,
-                                        "Serie de facturación no encontrada"
+                                        "Serie de facturaciÃ³n no encontrada"
                                 ));
 
         if (!serie.isActiva()) {
 
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "La serie de facturación no está activa"
+                    "La serie de facturaciÃ³n no estÃ¡ activa"
             );
         }
 
@@ -828,7 +837,7 @@ public class FacturaService {
                     HttpStatus.BAD_REQUEST,
                     "El producto o servicio "
                             + productoId
-                            + " no está activo"
+                            + " no estÃ¡ activo"
             );
         }
 
@@ -954,6 +963,7 @@ public class FacturaService {
                 linea.getDescripcion(),
                 linea.getCantidad(),
                 linea.getPrecioUnitario(),
+                linea.getSigno(),
                 linea.getTipoImpuesto(),
                 linea.getPorcentajeImpuesto(),
                 linea.getBaseImponible(),

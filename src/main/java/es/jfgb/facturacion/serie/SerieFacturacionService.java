@@ -60,6 +60,12 @@ public class SerieFacturacionService {
                 request.getDescripcion().trim()
         );
 
+        serie.setTipoSerie(
+                request.getTipoSerie() != null
+                        ? request.getTipoSerie()
+                        : TipoSerieFacturacion.ORDINARIA
+        );
+
         serie.setUltimoNumero(0L);
         serie.setActiva(true);
 
@@ -103,6 +109,15 @@ public class SerieFacturacionService {
                         codigoActual
                 );
 
+        TipoSerieFacturacion tipoSerieNuevo =
+                request.getTipoSerie() != null
+                        ? request.getTipoSerie()
+                        : serie.getTipoSerie();
+
+        boolean cambiaTipoSerie =
+                tipoSerieNuevo
+                        != serie.getTipoSerie();
+
         /*
          * Después de haber numerado una factura,
          * el código de la serie pasa a ser histórico.
@@ -118,6 +133,16 @@ public class SerieFacturacionService {
             );
         }
 
+        if (cambiaTipoSerie
+                && serie.getUltimoNumero() != null
+                && serie.getUltimoNumero() > 0L) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "No se puede cambiar el tipo de una serie "
+                            + "que ya tiene facturas emitidas"
+            );
+        }
         if (cambiaCodigo
                 && serieRepository
                 .existsByEmpresa_IdAndCodigoIgnoreCase(
@@ -138,6 +163,10 @@ public class SerieFacturacionService {
 
         serie.setDescripcion(
                 request.getDescripcion().trim()
+        );
+
+        serie.setTipoSerie(
+                tipoSerieNuevo
         );
 
         return convertir(
@@ -261,6 +290,7 @@ public class SerieFacturacionService {
                 serie.getEmpresa().getId(),
                 serie.getCodigo(),
                 serie.getDescripcion(),
+                serie.getTipoSerie(),
                 serie.getUltimoNumero(),
                 serie.isActiva(),
                 serie.getFechaCreacion(),

@@ -48,6 +48,41 @@ public class Factura {
     @Column(name = "fecha_expedicion")
     private LocalDate fechaExpedicion;
 
+    @Enumerated(EnumType.STRING)
+    @Column(
+            name = "tipo_factura",
+            nullable = false,
+            length = 2
+    )
+    private TipoFactura tipoFactura =
+            TipoFactura.F1;
+
+    @Enumerated(EnumType.STRING)
+    @Column(
+            name = "tipo_rectificativa",
+            length = 1
+    )
+    private TipoRectificativa tipoRectificativa;
+
+    @Column(
+            name = "motivo_rectificacion",
+            length = 500
+    )
+    private String motivoRectificacion;
+
+    @Column(
+            name = "base_rectificada",
+            precision = 15,
+            scale = 2
+    )
+    private BigDecimal baseRectificada;
+
+    @Column(
+            name = "cuota_rectificada",
+            precision = 15,
+            scale = 2
+    )
+    private BigDecimal cuotaRectificada;
     @Column(length = 1000)
     private String observaciones;
 
@@ -121,6 +156,20 @@ public class Factura {
 
     @Column(name = "motivo_anulacion", length = 500)
     private String motivoAnulacion;
+
+    /*
+     * Facturas originales afectadas por esta rectificativa.
+     *
+     * Para una F1 esta coleccion permanece vacia.
+     */
+    @OneToMany(
+            mappedBy = "facturaRectificativa",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    @OrderBy("orden ASC")
+    private List<FacturaRectificada> facturasRectificadas =
+            new ArrayList<>();
 
     @Column(name = "fecha_creacion", nullable = false, updatable = false)
     private Instant fechaCreacion;
@@ -230,6 +279,54 @@ public class Factura {
         this.fechaExpedicion = fechaExpedicion;
     }
 
+    public TipoFactura getTipoFactura() {
+        return tipoFactura;
+    }
+
+    public void setTipoFactura(
+            TipoFactura tipoFactura) {
+        this.tipoFactura = tipoFactura;
+    }
+
+    public TipoRectificativa getTipoRectificativa() {
+        return tipoRectificativa;
+    }
+
+    public void setTipoRectificativa(
+            TipoRectificativa tipoRectificativa) {
+        this.tipoRectificativa =
+                tipoRectificativa;
+    }
+
+    public String getMotivoRectificacion() {
+        return motivoRectificacion;
+    }
+
+    public void setMotivoRectificacion(
+            String motivoRectificacion) {
+        this.motivoRectificacion =
+                motivoRectificacion;
+    }
+
+    public BigDecimal getBaseRectificada() {
+        return baseRectificada;
+    }
+
+    public void setBaseRectificada(
+            BigDecimal baseRectificada) {
+        this.baseRectificada =
+                baseRectificada;
+    }
+
+    public BigDecimal getCuotaRectificada() {
+        return cuotaRectificada;
+    }
+
+    public void setCuotaRectificada(
+            BigDecimal cuotaRectificada) {
+        this.cuotaRectificada =
+                cuotaRectificada;
+    }
     public String getObservaciones() {
         return observaciones;
     }
@@ -416,6 +513,26 @@ public class Factura {
                 motivoAnulacion;
     }
 
+    public List<FacturaRectificada> getFacturasRectificadas() {
+        return facturasRectificadas;
+    }
+
+    public void agregarFacturaRectificada(
+            FacturaRectificada relacion) {
+
+        relacion.setFacturaRectificativa(
+                this
+        );
+
+        facturasRectificadas.add(
+                relacion
+        );
+    }
+
+    public void limpiarFacturasRectificadas() {
+
+        facturasRectificadas.clear();
+    }
     public Instant getFechaCreacion() {
         return fechaCreacion;
     }

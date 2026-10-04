@@ -1,0 +1,2 @@
+﻿ALTER TABLE factura_lineas
+    MODIFY COLUMN signo INT NOT NULL DEFAULT 1;

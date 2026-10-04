@@ -30,6 +30,14 @@ public class SerieFacturacion {
 
     @Column(nullable = false, length = 150)
     private String descripcion;
+    @Enumerated(EnumType.STRING)
+    @Column(
+            name = "tipo_serie",
+            nullable = false,
+            length = 20
+    )
+    private TipoSerieFacturacion tipoSerie =
+            TipoSerieFacturacion.ORDINARIA;
 
     @Column(name = "ultimo_numero", nullable = false)
     private Long ultimoNumero = 0L;
@@ -88,6 +96,14 @@ public class SerieFacturacion {
         this.descripcion = descripcion;
     }
 
+    public TipoSerieFacturacion getTipoSerie() {
+        return tipoSerie;
+    }
+
+    public void setTipoSerie(
+            TipoSerieFacturacion tipoSerie) {
+        this.tipoSerie = tipoSerie;
+    }
     public Long getUltimoNumero() {
         return ultimoNumero;
     }

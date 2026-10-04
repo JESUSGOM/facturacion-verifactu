@@ -10,6 +10,7 @@ public record FacturaLineaResponse(
         String descripcion,
         BigDecimal cantidad,
         BigDecimal precioUnitario,
+        Integer signo,
         TipoImpuesto tipoImpuesto,
         BigDecimal porcentajeImpuesto,
         BigDecimal baseImponible,

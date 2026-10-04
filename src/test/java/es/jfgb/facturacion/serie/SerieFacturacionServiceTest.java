@@ -284,6 +284,127 @@ class SerieFacturacionServiceTest {
         return empresa;
     }
 
+    @Test
+    void modificarSerieSinUsoPermiteCambiarTipo() {
+
+        Empresa empresa =
+                empresa(true);
+
+        SerieFacturacion serie =
+                serieBase(
+                        empresa,
+                        0L
+                );
+
+        assertEquals(
+                TipoSerieFacturacion.ORDINARIA,
+                serie.getTipoSerie()
+        );
+
+        SerieFacturacionRequest request =
+                request(
+                        "F2026",
+                        "Facturas 2026"
+                );
+
+        request.setTipoSerie(
+                TipoSerieFacturacion.RECTIFICATIVA
+        );
+
+        when(
+                serieRepository.findConBloqueo(
+                        30L,
+                        1L
+                )
+        ).thenReturn(
+                Optional.of(serie)
+        );
+
+        when(
+                serieRepository.saveAndFlush(
+                        serie
+                )
+        ).thenReturn(
+                serie
+        );
+
+        SerieFacturacionResponse response =
+                service.modificar(
+                        1L,
+                        30L,
+                        request
+                );
+
+        assertEquals(
+                TipoSerieFacturacion.RECTIFICATIVA,
+                serie.getTipoSerie()
+        );
+
+        assertEquals(
+                TipoSerieFacturacion.RECTIFICATIVA,
+                response.tipoSerie()
+        );
+    }
+
+    @Test
+    void modificarSerieUsadaNoPermiteCambiarTipo() {
+
+        Empresa empresa =
+                empresa(true);
+
+        SerieFacturacion serie =
+                serieBase(
+                        empresa,
+                        10L
+                );
+
+        SerieFacturacionRequest request =
+                request(
+                        "F2026",
+                        "Facturas 2026"
+                );
+
+        request.setTipoSerie(
+                TipoSerieFacturacion.RECTIFICATIVA
+        );
+
+        when(
+                serieRepository.findConBloqueo(
+                        30L,
+                        1L
+                )
+        ).thenReturn(
+                Optional.of(serie)
+        );
+
+        ResponseStatusException ex =
+                assertThrows(
+                        ResponseStatusException.class,
+                        () ->
+                                service.modificar(
+                                        1L,
+                                        30L,
+                                        request
+                                )
+                );
+
+        assertEquals(
+                HttpStatus.CONFLICT,
+                ex.getStatusCode()
+        );
+
+        assertEquals(
+                TipoSerieFacturacion.ORDINARIA,
+                serie.getTipoSerie()
+        );
+
+        verify(
+                serieRepository,
+                never()
+        ).saveAndFlush(
+                any()
+        );
+    }
     private SerieFacturacion serieBase(
             Empresa empresa,
             Long ultimoNumero) {

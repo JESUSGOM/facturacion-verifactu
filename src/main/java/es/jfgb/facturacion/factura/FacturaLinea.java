@@ -30,6 +30,17 @@ public class FacturaLinea {
 
     @Column(name = "precio_unitario", nullable = false, precision = 15, scale = 4)
     private BigDecimal precioUnitario;
+    /*
+     *  1 = importe positivo
+     * -1 = disminucion rectificativa
+     *
+     * La cantidad y el precio unitario permanecen positivos.
+     */
+    @Column(
+            name = "signo",
+            nullable = false
+    )
+    private Integer signo = 1;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "tipo_impuesto", nullable = false, length = 10)
@@ -97,6 +108,14 @@ public class FacturaLinea {
         this.precioUnitario = precioUnitario;
     }
 
+    public Integer getSigno() {
+        return signo;
+    }
+
+    public void setSigno(
+            Integer signo) {
+        this.signo = signo;
+    }
     public TipoImpuesto getTipoImpuesto() {
         return tipoImpuesto;
     }
