@@ -80,6 +80,22 @@ public class EstadoEnvioVerifactuService {
             );
         }
 
+        /*
+         * Una ANULACION solo puede iniciar su envio
+         * cuando el ALTA original ya esta ACEPTADO.
+         *
+         * Esta comprobacion ocurre antes de incrementar
+         * intentos o marcar el registro como ENVIANDO.
+         */
+        if (tipoEsperado
+                == TipoRegistroFacturacion.ANULACION) {
+
+            comprobarAltaOriginalAceptada(
+                    empresaId,
+                    registro
+            );
+        }
+
         if (registro.getEstadoEnvio()
                 == EstadoEnvioRegistro.ACEPTADO) {
 
@@ -161,6 +177,47 @@ public class EstadoEnvioVerifactuService {
         return registro;
     }
 
+    private void comprobarAltaOriginalAceptada(
+            Long empresaId,
+            RegistroFacturacion anulacion) {
+
+        if (anulacion.getFactura() == null
+                || anulacion.getFactura().getId() == null) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "La anulacion no tiene una factura asociada"
+            );
+        }
+
+        Long facturaId =
+                anulacion.getFactura().getId();
+
+        RegistroFacturacion altaOriginal =
+                registroRepository
+                        .findAltaOriginalConBloqueo(
+                                facturaId,
+                                empresaId,
+                                TipoRegistroFacturacion.ALTA
+                        )
+                        .orElseThrow(() ->
+                                new ResponseStatusException(
+                                        HttpStatus.CONFLICT,
+                                        "No existe el registro ALTA original "
+                                                + "de la factura que se pretende anular"
+                                ));
+
+        if (altaOriginal.getEstadoEnvio()
+                != EstadoEnvioRegistro.ACEPTADO) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "No puede enviarse la ANULACION hasta que "
+                            + "el ALTA original haya sido aceptado"
+            );
+        }
+    }
+
     @Transactional
     public void finalizarEnvio(
             Long empresaId,
@@ -171,7 +228,7 @@ public class EstadoEnvioVerifactuService {
         if (resultado == null) {
 
             throw new IllegalArgumentException(
-                    "El resultado del envío "
+                    "El resultado del envÃ­o "
                             + "VERI*FACTU no puede ser nulo"
             );
         }
@@ -193,7 +250,7 @@ public class EstadoEnvioVerifactuService {
                         .orElseThrow(() ->
                                 new ResponseStatusException(
                                         HttpStatus.NOT_FOUND,
-                                        "Registro de facturación no encontrado"
+                                        "Registro de facturaciÃ³n no encontrado"
                                 ));
 
         Integer numeroIntento =
@@ -209,7 +266,7 @@ public class EstadoEnvioVerifactuService {
                         )
                         .orElseThrow(() ->
                                 new IllegalStateException(
-                                        "No se encontró el intento "
+                                        "No se encontrÃ³ el intento "
                                                 + numeroIntento
                                                 + " del registro "
                                                 + registroId
@@ -296,7 +353,7 @@ public class EstadoEnvioVerifactuService {
                         .orElseThrow(() ->
                                 new ResponseStatusException(
                                         HttpStatus.NOT_FOUND,
-                                        "Registro de facturación no encontrado"
+                                        "Registro de facturaciÃ³n no encontrado"
                                 ));
 
         Integer numeroIntento =
@@ -312,7 +369,7 @@ public class EstadoEnvioVerifactuService {
                         )
                         .orElseThrow(() ->
                                 new IllegalStateException(
-                                        "No se encontró el intento "
+                                        "No se encontrÃ³ el intento "
                                                 + numeroIntento
                                                 + " del registro "
                                                 + registroId
@@ -389,7 +446,7 @@ public class EstadoEnvioVerifactuService {
                         .orElseThrow(() ->
                                 new ResponseStatusException(
                                         HttpStatus.NOT_FOUND,
-                                        "Registro de facturación no encontrado"
+                                        "Registro de facturaciÃ³n no encontrado"
                                 ));
 
         Integer numeroIntento =
@@ -405,7 +462,7 @@ public class EstadoEnvioVerifactuService {
                         )
                         .orElseThrow(() ->
                                 new IllegalStateException(
-                                        "No se encontró el intento "
+                                        "No se encontrÃ³ el intento "
                                                 + numeroIntento
                                                 + " del registro "
                                                 + registroId
@@ -427,10 +484,10 @@ public class EstadoEnvioVerifactuService {
 
         /*
          * No sabemos con certeza si el proveedor
-         * llegó a procesar la petición.
+         * llegÃ³ a procesar la peticiÃ³n.
          *
          * Por seguridad queda INCIERTO y no
-         * podrá reenviarse automáticamente.
+         * podrÃ¡ reenviarse automÃ¡ticamente.
          */
         registro.setProveedor(
                 proveedor
@@ -487,8 +544,8 @@ public class EstadoEnvioVerifactuService {
 
         /*
          * El registro pudo haber terminado correctamente
-         * entre la búsqueda inicial de candidatos
-         * y la adquisición de este bloqueo.
+         * entre la bÃºsqueda inicial de candidatos
+         * y la adquisiciÃ³n de este bloqueo.
          */
         if (registro.getEstadoEnvio()
                 != EstadoEnvioRegistro.ENVIANDO) {
@@ -504,8 +561,8 @@ public class EstadoEnvioVerifactuService {
         }
 
         /*
-         * Debe continuar siendo anterior al límite
-         * establecido por el proceso de recuperación.
+         * Debe continuar siendo anterior al lÃ­mite
+         * establecido por el proceso de recuperaciÃ³n.
          */
         if (!fechaUltimoIntento.isBefore(
                 limite
@@ -527,14 +584,14 @@ public class EstadoEnvioVerifactuService {
                         )
                         .orElseThrow(() ->
                                 new IllegalStateException(
-                                        "No se encontró el intento "
+                                        "No se encontrÃ³ el intento "
                                                 + numeroIntento
                                                 + " del registro "
                                                 + registroId
                                 ));
 
         /*
-         * Verificamos además que el intento histórico
+         * Verificamos ademÃ¡s que el intento histÃ³rico
          * siga realmente en ENVIANDO.
          */
         if (intento.getEstado()
@@ -596,8 +653,8 @@ public class EstadoEnvioVerifactuService {
                 || numeroIntento <= 0) {
 
             throw new IllegalStateException(
-                    "El registro de facturación no tiene "
-                            + "un intento de envío activo"
+                    "El registro de facturaciÃ³n no tiene "
+                            + "un intento de envÃ­o activo"
             );
         }
 

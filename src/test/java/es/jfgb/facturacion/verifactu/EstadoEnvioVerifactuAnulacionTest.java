@@ -1,5 +1,6 @@
 package es.jfgb.facturacion.verifactu;
 
+import es.jfgb.facturacion.factura.Factura;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -33,6 +34,32 @@ class EstadoEnvioVerifactuAnulacionTest {
         RegistroFacturacion registro =
                 new RegistroFacturacion();
 
+        Factura factura =
+                mock(
+                        Factura.class
+                );
+
+        when(
+                factura.getId()
+        ).thenReturn(
+                10L
+        );
+
+        registro.setFactura(
+                factura
+        );
+
+        RegistroFacturacion altaOriginal =
+                new RegistroFacturacion();
+
+        altaOriginal.setTipoRegistro(
+                TipoRegistroFacturacion.ALTA
+        );
+
+        altaOriginal.setEstadoEnvio(
+                EstadoEnvioRegistro.ACEPTADO
+        );
+
         registro.setTipoRegistro(
                 TipoRegistroFacturacion.ANULACION
         );
@@ -53,6 +80,18 @@ class EstadoEnvioVerifactuAnulacionTest {
         ).thenReturn(
                 Optional.of(
                         registro
+                )
+        );
+
+        when(
+                registroRepository.findAltaOriginalConBloqueo(
+                        10L,
+                        1L,
+                        TipoRegistroFacturacion.ALTA
+                )
+        ).thenReturn(
+                Optional.of(
+                        altaOriginal
                 )
         );
 
@@ -157,6 +196,235 @@ class EstadoEnvioVerifactuAnulacionTest {
         assertEquals(
                 EstadoEnvioRegistro.PENDIENTE,
                 registro.getEstadoEnvio()
+        );
+
+        verify(
+                registroRepository,
+                never()
+        ).saveAndFlush(
+                any()
+        );
+
+        verifyNoInteractions(
+                intentoRepository
+        );
+    }
+
+    @Test
+    void bloqueaAnulacionMientrasAltaOriginalNoEsteAceptado() {
+
+        EstadoEnvioRegistro[] estadosBloqueados = {
+                EstadoEnvioRegistro.PENDIENTE,
+                EstadoEnvioRegistro.ENVIANDO,
+                EstadoEnvioRegistro.RECHAZADO,
+                EstadoEnvioRegistro.ERROR,
+                EstadoEnvioRegistro.INCIERTO
+        };
+
+        for (EstadoEnvioRegistro estadoAlta : estadosBloqueados) {
+
+            RegistroFacturacionRepository registroRepository =
+                    mock(RegistroFacturacionRepository.class);
+
+            RegistroFacturacionIntentoRepository intentoRepository =
+                    mock(RegistroFacturacionIntentoRepository.class);
+
+            EstadoEnvioVerifactuService service =
+                    new EstadoEnvioVerifactuService(
+                            registroRepository,
+                            intentoRepository
+                    );
+
+            Factura factura =
+                    mock(Factura.class);
+
+            when(
+                    factura.getId()
+            ).thenReturn(
+                    10L
+            );
+
+            RegistroFacturacion anulacion =
+                    new RegistroFacturacion();
+
+            anulacion.setFactura(
+                    factura
+            );
+
+            anulacion.setTipoRegistro(
+                    TipoRegistroFacturacion.ANULACION
+            );
+
+            anulacion.setEstadoEnvio(
+                    EstadoEnvioRegistro.PENDIENTE
+            );
+
+            anulacion.setIntentosEnvio(
+                    0
+            );
+
+            RegistroFacturacion altaOriginal =
+                    new RegistroFacturacion();
+
+            altaOriginal.setTipoRegistro(
+                    TipoRegistroFacturacion.ALTA
+            );
+
+            altaOriginal.setEstadoEnvio(
+                    estadoAlta
+            );
+
+            when(
+                    registroRepository.findConBloqueo(
+                            1L,
+                            99L
+                    )
+            ).thenReturn(
+                    Optional.of(anulacion)
+            );
+
+            when(
+                    registroRepository.findAltaOriginalConBloqueo(
+                            10L,
+                            1L,
+                            TipoRegistroFacturacion.ALTA
+                    )
+            ).thenReturn(
+                    Optional.of(altaOriginal)
+            );
+
+            ResponseStatusException ex =
+                    assertThrows(
+                            ResponseStatusException.class,
+                            () -> service.iniciarEnvio(
+                                    1L,
+                                    99L,
+                                    TipoRegistroFacturacion.ANULACION
+                            ),
+                            "Debe bloquearse con ALTA " + estadoAlta
+                    );
+
+            assertEquals(
+                    409,
+                    ex.getStatusCode().value()
+            );
+
+            assertEquals(
+                    EstadoEnvioRegistro.PENDIENTE,
+                    anulacion.getEstadoEnvio()
+            );
+
+            assertEquals(
+                    0,
+                    anulacion.getIntentosEnvio()
+            );
+
+            assertNull(
+                    anulacion.getFechaUltimoIntento()
+            );
+
+            verify(
+                    registroRepository,
+                    never()
+            ).saveAndFlush(
+                    any()
+            );
+
+            verifyNoInteractions(
+                    intentoRepository
+            );
+        }
+    }
+
+    @Test
+    void bloqueaAnulacionSiNoExisteAltaOriginal() {
+
+        RegistroFacturacionRepository registroRepository =
+                mock(RegistroFacturacionRepository.class);
+
+        RegistroFacturacionIntentoRepository intentoRepository =
+                mock(RegistroFacturacionIntentoRepository.class);
+
+        EstadoEnvioVerifactuService service =
+                new EstadoEnvioVerifactuService(
+                        registroRepository,
+                        intentoRepository
+                );
+
+        Factura factura =
+                mock(Factura.class);
+
+        when(
+                factura.getId()
+        ).thenReturn(
+                10L
+        );
+
+        RegistroFacturacion anulacion =
+                new RegistroFacturacion();
+
+        anulacion.setFactura(
+                factura
+        );
+
+        anulacion.setTipoRegistro(
+                TipoRegistroFacturacion.ANULACION
+        );
+
+        anulacion.setEstadoEnvio(
+                EstadoEnvioRegistro.PENDIENTE
+        );
+
+        anulacion.setIntentosEnvio(
+                0
+        );
+
+        when(
+                registroRepository.findConBloqueo(
+                        1L,
+                        99L
+                )
+        ).thenReturn(
+                Optional.of(anulacion)
+        );
+
+        when(
+                registroRepository.findAltaOriginalConBloqueo(
+                        10L,
+                        1L,
+                        TipoRegistroFacturacion.ALTA
+                )
+        ).thenReturn(
+                Optional.empty()
+        );
+
+        ResponseStatusException ex =
+                assertThrows(
+                        ResponseStatusException.class,
+                        () -> service.iniciarEnvio(
+                                1L,
+                                99L,
+                                TipoRegistroFacturacion.ANULACION
+                        )
+                );
+
+        assertEquals(
+                409,
+                ex.getStatusCode().value()
+        );
+
+        assertEquals(
+                EstadoEnvioRegistro.PENDIENTE,
+                anulacion.getEstadoEnvio()
+        );
+
+        assertEquals(
+                0,
+                anulacion.getIntentosEnvio()
+        );
+
+        assertNull(
+                anulacion.getFechaUltimoIntento()
         );
 
         verify(

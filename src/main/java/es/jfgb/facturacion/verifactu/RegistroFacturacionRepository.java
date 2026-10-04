@@ -76,4 +76,18 @@ public interface RegistroFacturacionRepository
     Optional<RegistroFacturacion> findConBloqueoPorId(
             @Param("registroId") Long registroId
     );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+        SELECT r
+        FROM RegistroFacturacion r
+        WHERE r.factura.id = :facturaId
+          AND r.empresa.id = :empresaId
+          AND r.tipoRegistro = :tipoRegistro
+        """)
+    Optional<RegistroFacturacion> findAltaOriginalConBloqueo(
+            @Param("facturaId") Long facturaId,
+            @Param("empresaId") Long empresaId,
+            @Param("tipoRegistro") TipoRegistroFacturacion tipoRegistro
+    );
 }
