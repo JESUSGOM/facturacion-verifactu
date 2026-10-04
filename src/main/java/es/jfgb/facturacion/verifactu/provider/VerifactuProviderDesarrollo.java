@@ -32,35 +32,47 @@ public class VerifactuProviderDesarrollo
     public ResultadoEnvioVerifactu enviarAlta(
             RegistroFacturacion registro) {
 
-        /*
-         * Simula un caso en el que la petición pudo haber
-         * llegado al proveedor, pero no conocemos con
-         * certeza el resultado.
-         *
-         * Este caso debe terminar como INCIERTO.
-         */
+        return simular(
+                registro,
+                "ALTA"
+        );
+    }
+
+    @Override
+    public ResultadoEnvioVerifactu enviarAnulacion(
+            RegistroFacturacion registro) {
+
+        return simular(
+                registro,
+                "ANULACION"
+        );
+    }
+
+    private ResultadoEnvioVerifactu simular(
+            RegistroFacturacion registro,
+            String tipo) {
+
         if (simularIncierto) {
 
             throw new EnvioVerifactuInciertoException(
                     "Resultado incierto simulado "
-                            + "durante la comunicación con el proveedor"
+                            + "durante la comunicacion "
+                            + "con el proveedor"
             );
         }
 
-        /*
-         * Simula un error considerado seguro.
-         *
-         * Este caso debe terminar como ERROR.
-         */
         if (simularError) {
 
             throw new IllegalStateException(
-                    "Fallo de comunicación simulado con el proveedor"
+                    "Fallo de comunicacion simulado "
+                            + "con el proveedor"
             );
         }
 
         String peticion =
-                "SIMULACION ALTA "
+                "SIMULACION "
+                        + tipo
+                        + " "
                         + registro.getNumSerieFactura();
 
         String respuesta =

@@ -48,6 +48,61 @@ public class HuellaVerifactuService {
     }
 
 
+    /**
+     * Calcula la huella de un registro de facturacion
+     * de ANULACION segun las especificaciones AEAT.
+     */
+    public String calcularAnulacion(
+            String nifEmisor,
+            String numSerieFactura,
+            LocalDate fechaExpedicion,
+            String huellaAnterior,
+            OffsetDateTime fechaHoraGeneracion) {
+
+        String cadena =
+                construirCadenaAnulacion(
+                        nifEmisor,
+                        numSerieFactura,
+                        fechaExpedicion,
+                        huellaAnterior,
+                        fechaHoraGeneracion
+                );
+
+        return calcularSha256(
+                cadena
+        );
+    }
+
+    /**
+     * Construye la cadena de entrada SHA-256 para
+     * un registro de facturacion de ANULACION.
+     *
+     * El orden y los nombres de los campos son
+     * los definidos por AEAT.
+     */
+    public String construirCadenaAnulacion(
+            String nifEmisor,
+            String numSerieFactura,
+            LocalDate fechaExpedicion,
+            String huellaAnterior,
+            OffsetDateTime fechaHoraGeneracion) {
+
+        return "IDEmisorFacturaAnulada="
+                + limpiar(nifEmisor)
+
+                + "&NumSerieFacturaAnulada="
+                + limpiar(numSerieFactura)
+
+                + "&FechaExpedicionFacturaAnulada="
+                + fechaExpedicion.format(FECHA_FACTURA)
+
+                + "&Huella="
+                + limpiar(huellaAnterior)
+
+                + "&FechaHoraHusoGenRegistro="
+                + fechaHoraGeneracion.format(FECHA_HORA);
+    }
+
     public String formatearFechaHora(
             OffsetDateTime fechaHoraGeneracion) {
 

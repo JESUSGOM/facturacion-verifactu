@@ -7,10 +7,7 @@ import org.springframework.stereotype.Component;
 /**
  * Proveedor seguro por defecto.
  *
- * Se utiliza únicamente cuando no están activos
- * ni el perfil de desarrollo ni el de preproducción AEAT.
- *
- * Este proveedor NO realiza ninguna comunicación externa.
+ * No realiza ninguna comunicacion externa.
  */
 @Component
 @Profile("!dev & !aeat-pre")
@@ -31,8 +28,20 @@ public class VerifactuProviderDeshabilitado
     public ResultadoEnvioVerifactu enviarAlta(
             RegistroFacturacion registro) {
 
-        throw new IllegalStateException(
-                "No existe ningún proveedor VERI*FACTU "
+        throw bloqueado();
+    }
+
+    @Override
+    public ResultadoEnvioVerifactu enviarAnulacion(
+            RegistroFacturacion registro) {
+
+        throw bloqueado();
+    }
+
+    private IllegalStateException bloqueado() {
+
+        return new IllegalStateException(
+                "No existe ningun proveedor VERI*FACTU "
                         + "habilitado para el perfil actual"
         );
     }

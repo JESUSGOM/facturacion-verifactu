@@ -31,6 +31,16 @@ public class AeatVerifactuProvider
     private final AeatResultadoEnvioMapper
             resultadoEnvioMapper;
 
+    /*
+     * Permanece null cuando se utiliza el constructor
+     * historico de cinco argumentos.
+     *
+     * De esta forma el contexto aeat-pre actual NO puede
+     * enviar anulaciones todavia.
+     */
+    private AeatEnvioAnulacionExecutor
+            envioAnulacionExecutor;
+
     public AeatVerifactuProvider(
             AeatSolicitudAltaXmlBuilder solicitudAltaXmlBuilder,
             AeatSoapGateway soapGateway,
@@ -82,6 +92,45 @@ public class AeatVerifactuProvider
 
         this.resultadoEnvioMapper =
                 resultadoEnvioMapper;
+
+        /*
+         * Bloqueo deliberado de ANULACION para el
+         * constructor que usa actualmente Spring.
+         */
+        this.envioAnulacionExecutor =
+                null;
+    }
+
+    /**
+     * Constructor preparado para ANULACION.
+     *
+     * Por ahora se utilizara exclusivamente en tests.
+     */
+    public AeatVerifactuProvider(
+            AeatSolicitudAltaXmlBuilder solicitudAltaXmlBuilder,
+            AeatSoapGateway soapGateway,
+            AeatRespuestaAltaXmlBuilder respuestaAltaXmlBuilder,
+            AeatRespuestaAltaValidator respuestaAltaValidator,
+            AeatResultadoEnvioMapper resultadoEnvioMapper,
+            AeatEnvioAnulacionExecutor envioAnulacionExecutor) {
+
+        this(
+                solicitudAltaXmlBuilder,
+                soapGateway,
+                respuestaAltaXmlBuilder,
+                respuestaAltaValidator,
+                resultadoEnvioMapper
+        );
+
+        if (envioAnulacionExecutor == null) {
+            throw new IllegalArgumentException(
+                    "AeatEnvioAnulacionExecutor "
+                            + "no puede ser nulo"
+            );
+        }
+
+        this.envioAnulacionExecutor =
+                envioAnulacionExecutor;
     }
 
     @Override
@@ -262,6 +311,29 @@ public class AeatVerifactuProvider
                     e
             );
         }
+    }
+
+    @Override
+    public ResultadoEnvioVerifactu enviarAnulacion(
+            RegistroFacturacion registro) {
+
+        /*
+         * Mientras AeatPreproduccionConfiguration siga
+         * utilizando el constructor historico, este campo
+         * sera null y la operacion queda bloqueada ANTES
+         * de cualquier llamada SOAP.
+         */
+        if (envioAnulacionExecutor == null) {
+
+            throw new IllegalStateException(
+                    "El envio AEAT de ANULACION "
+                            + "todavia no esta habilitado"
+            );
+        }
+
+        return envioAnulacionExecutor.enviar(
+                registro
+        );
     }
 
     private ResultadoEnvioVerifactu

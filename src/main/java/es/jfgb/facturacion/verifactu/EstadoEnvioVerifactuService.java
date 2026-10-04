@@ -29,6 +29,31 @@ public class EstadoEnvioVerifactuService {
             Long empresaId,
             Long registroId) {
 
+        /*
+         * Compatibilidad con el flujo historico de ALTA.
+         */
+        return iniciarEnvio(
+                empresaId,
+                registroId,
+                TipoRegistroFacturacion.ALTA
+        );
+    }
+
+    @Transactional
+    public RegistroFacturacion iniciarEnvio(
+            Long empresaId,
+            Long registroId,
+            TipoRegistroFacturacion tipoEsperado) {
+
+        if (tipoEsperado == null) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Debe indicarse el tipo de registro "
+                            + "que se pretende enviar"
+            );
+        }
+
         RegistroFacturacion registro =
                 registroRepository
                         .findConBloqueo(
@@ -38,15 +63,20 @@ public class EstadoEnvioVerifactuService {
                         .orElseThrow(() ->
                                 new ResponseStatusException(
                                         HttpStatus.NOT_FOUND,
-                                        "Registro de facturación no encontrado"
+                                        "Registro de facturacion no encontrado"
                                 ));
 
+        /*
+         * La validacion del tipo se realiza antes
+         * de incrementar intentos o marcar ENVIANDO.
+         */
         if (registro.getTipoRegistro()
-                != TipoRegistroFacturacion.ALTA) {
+                != tipoEsperado) {
 
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "El registro no es de tipo ALTA"
+                    "El registro no es de tipo "
+                            + tipoEsperado
             );
         }
 
@@ -64,7 +94,7 @@ public class EstadoEnvioVerifactuService {
 
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
-                    "El registro ya está siendo enviado"
+                    "El registro ya esta siendo enviado"
             );
         }
 
@@ -73,7 +103,7 @@ public class EstadoEnvioVerifactuService {
 
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
-                    "El resultado del envío anterior es incierto "
+                    "El resultado del envio anterior es incierto "
                             + "y debe reconciliarse antes de reenviar"
             );
         }

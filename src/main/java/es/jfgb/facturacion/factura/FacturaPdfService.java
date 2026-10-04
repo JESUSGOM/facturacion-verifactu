@@ -73,13 +73,22 @@ public class FacturaPdfService {
          * identidad fiscal definitiva ni registro
          * VERI*FACTU.
          */
+        /*
+         * El PDF definitivo puede consultarse tanto
+         * mientras la factura esta EMITIDA como despues
+         * de haberse generado su anulacion.
+         *
+         * No alteramos el documento historico por el
+         * hecho de que posteriormente exista un registro
+         * VERI*FACTU de ANULACION.
+         */
         if (factura.estado()
-                != EstadoFactura.EMITIDA) {
+                == EstadoFactura.BORRADOR) {
 
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
-                    "Solo puede generarse el PDF definitivo "
-                            + "de una factura emitida"
+                    "No puede generarse el PDF definitivo "
+                            + "de una factura en borrador"
             );
         }
         Factura facturaPersistida =

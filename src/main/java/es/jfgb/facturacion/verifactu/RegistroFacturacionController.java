@@ -1,6 +1,8 @@
 package es.jfgb.facturacion.verifactu;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -28,7 +30,9 @@ public class RegistroFacturacionController {
     public List<RegistroFacturacionResponse> listar(
             @PathVariable Long empresaId) {
 
-        return service.listar(empresaId);
+        return service.listar(
+                empresaId
+        );
     }
 
     @GetMapping("/{registroId}")
@@ -58,10 +62,40 @@ public class RegistroFacturacionController {
             @PathVariable Long empresaId,
             @PathVariable Long registroId) {
 
-        servicioEnvio.enviarAlta(
-                empresaId,
-                registroId
-        );
+        /*
+         * Primero identificamos el tipo de registro.
+         *
+         * Esta lectura no cambia su estado.
+         */
+        RegistroFacturacionResponse registro =
+                service.obtener(
+                        empresaId,
+                        registroId
+                );
+
+        if (registro.tipoRegistro() == null) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "El registro VERI*FACTU no tiene "
+                            + "un tipo definido"
+            );
+        }
+
+        switch (registro.tipoRegistro()) {
+
+            case ALTA ->
+                    servicioEnvio.enviarAlta(
+                            empresaId,
+                            registroId
+                    );
+
+            case ANULACION ->
+                    servicioEnvio.enviarAnulacion(
+                            empresaId,
+                            registroId
+                    );
+        }
 
         return service.obtener(
                 empresaId,

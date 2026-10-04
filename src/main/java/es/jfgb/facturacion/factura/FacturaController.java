@@ -96,6 +96,28 @@ public class FacturaController {
         );
     }
 
+    /**
+     * Anula localmente una factura previamente emitida.
+     *
+     * La operacion crea el registro VERI*FACTU de ANULACION
+     * y cambia la factura a ANULADA dentro de la misma
+     * transaccion.
+     *
+     * Este endpoint NO envia ningun registro a AEAT.
+     */
+    @PostMapping("/{facturaId}/anular")
+    public FacturaResponse anular(
+            @PathVariable Long empresaId,
+            @PathVariable Long facturaId,
+            @Valid @RequestBody AnulacionFacturaRequest request) {
+
+        return facturaService.anular(
+                empresaId,
+                facturaId,
+                request
+        );
+    }
+
     @GetMapping(
             value = "/{facturaId}/pdf",
             produces = MediaType.APPLICATION_PDF_VALUE

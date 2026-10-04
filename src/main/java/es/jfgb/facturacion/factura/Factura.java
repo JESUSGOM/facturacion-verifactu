@@ -111,6 +111,17 @@ public class Factura {
 
     @Column(name = "empresa_codigo_pais", length = 2)
     private String empresaCodigoPais;
+    /*
+     * Datos de auditoria de la anulacion.
+     *
+     * No sustituyen al registro VERI*FACTU de ANULACION.
+     */
+    @Column(name = "fecha_anulacion")
+    private Instant fechaAnulacion;
+
+    @Column(name = "motivo_anulacion", length = 500)
+    private String motivoAnulacion;
+
     @Column(name = "fecha_creacion", nullable = false, updatable = false)
     private Instant fechaCreacion;
 
@@ -385,6 +396,26 @@ public class Factura {
         this.empresaCodigoPais =
                 empresaCodigoPais;
     }
+    public Instant getFechaAnulacion() {
+        return fechaAnulacion;
+    }
+
+    public void setFechaAnulacion(
+            Instant fechaAnulacion) {
+        this.fechaAnulacion =
+                fechaAnulacion;
+    }
+
+    public String getMotivoAnulacion() {
+        return motivoAnulacion;
+    }
+
+    public void setMotivoAnulacion(
+            String motivoAnulacion) {
+        this.motivoAnulacion =
+                motivoAnulacion;
+    }
+
     public Instant getFechaCreacion() {
         return fechaCreacion;
     }

@@ -30,99 +30,109 @@ public class ServicioEnvioVerifactu {
             Long empresaId,
             Long registroId) {
 
-        /*
-         * =========================================================
-         * PRIMER CERROJO DE SEGURIDAD
-         * =========================================================
-         *
-         * El envío debe estar habilitado expresamente.
-         *
-         * Esta comprobación se realiza ANTES de:
-         *
-         * - bloquear el registro,
-         * - incrementar intentos,
-         * - crear historial,
-         * - marcarlo como ENVIANDO,
-         * - llamar al proveedor.
-         */
+        enviar(
+                empresaId,
+                registroId,
+                TipoRegistroFacturacion.ALTA
+        );
+    }
 
+    public void enviarAnulacion(
+            Long empresaId,
+            Long registroId) {
+
+        enviar(
+                empresaId,
+                registroId,
+                TipoRegistroFacturacion.ANULACION
+        );
+    }
+
+    private void enviar(
+            Long empresaId,
+            Long registroId,
+            TipoRegistroFacturacion tipoRegistro) {
+
+        /*
+         * PRIMER CERROJO:
+         * debe habilitarse expresamente.
+         *
+         * Se comprueba antes de tocar la BD.
+         */
         if (!envioHabilitado) {
 
             throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE,
-                    "El envío VERI*FACTU está deshabilitado "
-                            + "por configuración"
+                    "El envio VERI*FACTU esta deshabilitado "
+                            + "por configuracion"
             );
         }
 
         /*
-         * =========================================================
-         * SEGUNDO CERROJO DE SEGURIDAD
-         * =========================================================
+         * SEGUNDO CERROJO:
+         * el proveedor puede bloquear cualquier envio.
          *
-         * Aunque alguien habilitase accidentalmente
-         * verifactu.envio-habilitado=true, un proveedor
-         * deliberadamente deshabilitado impide continuar.
-         *
-         * También se comprueba ANTES de modificar la BD.
+         * Tambien se comprueba antes de tocar la BD.
          */
-
         if (provider.bloqueaEnvio()) {
 
             throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE,
-                    "No existe ningún proveedor VERI*FACTU "
+                    "No existe ningun proveedor VERI*FACTU "
                             + "habilitado para el perfil actual"
             );
         }
 
         /*
-         * =========================================================
-         * TRANSACCION 1
-         * =========================================================
-         *
-         * Bloquea el registro, valida su estado,
-         * incrementa el número de intento,
-         * crea el intento histórico,
-         * lo marca como ENVIANDO
-         * y hace COMMIT.
+         * Mantenemos la llamada historica de dos argumentos
+         * para ALTA y utilizamos la nueva comprobacion
+         * explicita de tipo para ANULACION.
          */
+        RegistroFacturacion registro;
 
-        RegistroFacturacion registro =
-                estadoEnvioService.iniciarEnvio(
-                        empresaId,
-                        registroId
-                );
+        if (tipoRegistro
+                == TipoRegistroFacturacion.ALTA) {
+
+            registro =
+                    estadoEnvioService
+                            .iniciarEnvio(
+                                    empresaId,
+                                    registroId
+                            );
+
+        } else {
+
+            registro =
+                    estadoEnvioService
+                            .iniciarEnvio(
+                                    empresaId,
+                                    registroId,
+                                    tipoRegistro
+                            );
+        }
 
         String nombreProveedor =
                 provider.getNombre();
-
-        /*
-         * =========================================================
-         * LLAMADA EXTERNA AL PROVEEDOR
-         * =========================================================
-         *
-         * Aquí no existe una transacción de base de datos.
-         */
 
         ResultadoEnvioVerifactu resultado;
 
         try {
 
             resultado =
-                    provider.enviarAlta(
-                            registro
-                    );
+                    switch (tipoRegistro) {
+
+                        case ALTA ->
+                                provider.enviarAlta(
+                                        registro
+                                );
+
+                        case ANULACION ->
+                                provider.enviarAnulacion(
+                                        registro
+                                );
+                    };
 
         } catch (EnvioVerifactuInciertoException e) {
-
-            /*
-             * La petición puede haber llegado al proveedor,
-             * pero no conocemos con certeza el resultado.
-             *
-             * NO debe convertirse en ERROR porque eso
-             * permitiría un posible reenvío.
-             */
 
             estadoEnvioService.registrarIncierto(
                     empresaId,
@@ -133,17 +143,13 @@ public class ServicioEnvioVerifactu {
 
             throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY,
-                    "El resultado del envío al proveedor "
+                    "El resultado del envio al proveedor "
                             + "es incierto y debe reconciliarse "
                             + "antes de reenviar",
                     e
             );
 
         } catch (Exception e) {
-
-            /*
-             * Error considerado seguro.
-             */
 
             estadoEnvioService.registrarError(
                     empresaId,
@@ -160,20 +166,11 @@ public class ServicioEnvioVerifactu {
         }
 
         /*
-         * =========================================================
-         * TRANSACCION 2
-         * =========================================================
+         * El proveedor ya ha respondido.
          *
-         * El proveedor YA ha respondido.
-         *
-         * Si falla la persistencia de esta respuesta,
-         * no debemos convertir el registro en ERROR.
-         *
-         * Permanecerá normalmente en ENVIANDO y el
-         * mecanismo de recuperación lo convertirá
-         * posteriormente en INCIERTO.
+         * Si esta persistencia falla, el registro
+         * no debe reenviarse hasta reconciliarlo.
          */
-
         try {
 
             estadoEnvioService.finalizarEnvio(
@@ -187,8 +184,8 @@ public class ServicioEnvioVerifactu {
 
             throw new ResponseStatusException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
-                    "El proveedor respondió, pero no se pudo "
-                            + "guardar el resultado del envío. "
+                    "El proveedor respondio, pero no se pudo "
+                            + "guardar el resultado del envio. "
                             + "El registro no debe reenviarse "
                             + "hasta reconciliar su estado.",
                     e

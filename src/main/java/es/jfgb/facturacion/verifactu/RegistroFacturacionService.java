@@ -3,6 +3,7 @@ package es.jfgb.facturacion.verifactu;
 import es.jfgb.facturacion.empresa.Empresa;
 import es.jfgb.facturacion.empresa.EmpresaRepository;
 import es.jfgb.facturacion.factura.Factura;
+import es.jfgb.facturacion.factura.EstadoFactura;
 import es.jfgb.facturacion.factura.FacturaLinea;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -382,6 +383,283 @@ public class RegistroFacturacionService {
          * número de instalación, se guarda dentro
          * de la misma transacción que el registro.
          */
+        return registroRepository
+                .saveAndFlush(
+                        registro
+                );
+    }
+
+    /**
+     * Crea localmente un registro VERI*FACTU
+     * de ANULACION.
+     *
+     * No realiza ninguna comunicacion con AEAT.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public RegistroFacturacion crearAnulacion(
+            Factura factura) {
+
+        if (factura == null) {
+            throw error(
+                    "No se ha recibido la factura"
+            );
+        }
+
+        if (factura.getId() == null) {
+            throw error(
+                    "La factura debe estar guardada "
+                            + "antes de generar la anulacion"
+            );
+        }
+
+        if (factura.getEmpresa() == null
+                || factura.getEmpresa().getId() == null) {
+
+            throw error(
+                    "La factura no tiene empresa"
+            );
+        }
+
+        if (factura.getEstado()
+                != EstadoFactura.EMITIDA) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Solo se puede anular una factura "
+                            + "en estado EMITIDA"
+            );
+        }
+
+        Long empresaId =
+                factura.getEmpresa().getId();
+
+        /*
+         * El bloqueo de empresa serializa la creacion
+         * de registros fiscales para esa empresa.
+         */
+        Empresa empresa =
+                empresaRepository
+                        .findConBloqueo(
+                                empresaId
+                        )
+                        .orElseThrow(() ->
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
+                                        "Empresa no encontrada"
+                                ));
+
+        boolean yaExiste =
+                registroRepository
+                        .existsByFactura_IdAndTipoRegistro(
+                                factura.getId(),
+                                TipoRegistroFacturacion.ANULACION
+                        );
+
+        if (yaExiste) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "La factura ya tiene un registro "
+                            + "de facturacion de anulacion"
+            );
+        }
+
+        /*
+         * Identificacion fiscal inmutable de la
+         * factura que se quiere anular.
+         */
+        RegistroFacturacion altaOriginal =
+                registroRepository
+                        .findByFactura_IdAndEmpresa_IdAndTipoRegistro(
+                                factura.getId(),
+                                empresaId,
+                                TipoRegistroFacturacion.ALTA
+                        )
+                        .orElseThrow(() ->
+                                new ResponseStatusException(
+                                        HttpStatus.CONFLICT,
+                                        "La factura no dispone de un "
+                                                + "registro VERI*FACTU "
+                                                + "de alta"
+                                ));
+
+        /*
+         * El registro anterior de la cadena no tiene
+         * por que ser el ALTA de esta factura.
+         * Debe ser el ultimo registro fiscal de la empresa.
+         */
+        RegistroFacturacion anterior =
+                registroRepository
+                        .findTopByEmpresa_IdOrderByIdDesc(
+                                empresaId
+                        )
+                        .orElseThrow(() ->
+                                new IllegalStateException(
+                                        "No existe registro anterior "
+                                                + "para encadenar "
+                                                + "la anulacion"
+                                ));
+
+        String huellaAnterior =
+                obligatorio(
+                        anterior.getHuella(),
+                        "Huella del registro anterior",
+                        64
+                );
+
+        DatosSistema datosSistema =
+                obtenerDatosSistema(
+                        empresa
+                );
+
+        OffsetDateTime fechaHoraGeneracion =
+                OffsetDateTime.now()
+                        .withNano(0);
+
+        String huella =
+                huellaVerifactuService
+                        .calcularAnulacion(
+                                altaOriginal.getNifEmisor(),
+                                altaOriginal.getNumSerieFactura(),
+                                altaOriginal.getFechaExpedicion(),
+                                huellaAnterior,
+                                fechaHoraGeneracion
+                        );
+
+        RegistroFacturacion registro =
+                new RegistroFacturacion();
+
+        registro.setEmpresa(
+                empresa
+        );
+
+        registro.setFactura(
+                factura
+        );
+
+        registro.setTipoRegistro(
+                TipoRegistroFacturacion.ANULACION
+        );
+
+        /*
+         * Copiamos la identificacion de la factura
+         * desde el ALTA historico.
+         */
+        registro.setNifEmisor(
+                altaOriginal.getNifEmisor()
+        );
+
+        registro.setSerie(
+                altaOriginal.getSerie()
+        );
+
+        registro.setNumero(
+                altaOriginal.getNumero()
+        );
+
+        registro.setNumSerieFactura(
+                altaOriginal.getNumSerieFactura()
+        );
+
+        registro.setFechaExpedicion(
+                altaOriginal.getFechaExpedicion()
+        );
+
+        /*
+         * Nuestra tabla utiliza estas columnas como
+         * obligatorias tambien para ANULACION.
+         * Conservamos el contexto del ALTA original.
+         */
+        registro.setTipoFactura(
+                altaOriginal.getTipoFactura()
+        );
+
+        registro.setCuotaTotal(
+                normalizarImporte(
+                        altaOriginal.getCuotaTotal()
+                )
+        );
+
+        registro.setImporteTotal(
+                normalizarImporte(
+                        altaOriginal.getImporteTotal()
+                )
+        );
+
+        registro.setRegistroAnterior(
+                anterior
+        );
+
+        registro.setHuellaAnterior(
+                huellaAnterior
+        );
+
+        registro.setFechaHoraGeneracion(
+                huellaVerifactuService
+                        .formatearFechaHora(
+                                fechaHoraGeneracion
+                        )
+        );
+
+        registro.setHuella(
+                huella
+        );
+
+        registro.setIdVersionAeat(
+                ID_VERSION_AEAT
+        );
+
+        registro.setNombreRazonEmisor(
+                altaOriginal.getNombreRazonEmisor()
+        );
+
+        registro.setTipoHuella(
+                TIPO_HUELLA_SHA_256
+        );
+
+        /*
+         * El sistema informatico corresponde al
+         * sistema que genera la anulacion.
+         */
+        registro.setSistemaNombreRazon(
+                datosSistema.nombreRazon()
+        );
+
+        registro.setSistemaNif(
+                datosSistema.nif()
+        );
+
+        registro.setSistemaNombre(
+                datosSistema.nombreSistema()
+        );
+
+        registro.setSistemaId(
+                datosSistema.idSistema()
+        );
+
+        registro.setSistemaVersion(
+                datosSistema.version()
+        );
+
+        registro.setSistemaNumeroInstalacion(
+                datosSistema.numeroInstalacion()
+        );
+
+        registro.setSistemaSoloVerifactu(
+                datosSistema.soloVerifactu()
+        );
+
+        registro.setSistemaMultiOt(
+                datosSistema.multiOt()
+        );
+
+        registro.setSistemaMultiplesOt(
+                datosSistema.multiplesOt()
+        );
+
+        registro.setEstadoEnvio(
+                EstadoEnvioRegistro.PENDIENTE
+        );
+
         return registroRepository
                 .saveAndFlush(
                         registro

@@ -8,9 +8,7 @@ public interface VerifactuProvider {
 
     /**
      * Indica que este proveedor representa deliberadamente
-     * un modo en el que cualquier envío debe quedar bloqueado.
-     *
-     * Por defecto los proveedores normales no bloquean.
+     * un modo en el que cualquier envio debe quedar bloqueado.
      */
     default boolean bloqueaEnvio() {
         return false;
@@ -18,4 +16,22 @@ public interface VerifactuProvider {
 
     ResultadoEnvioVerifactu enviarAlta(
             RegistroFacturacion registro);
+
+    /**
+     * La implementacion real AEAT se incorporara
+     * expresamente en un paso posterior.
+     *
+     * Mientras tanto, un proveedor que no implemente
+     * ANULACION queda bloqueado localmente.
+     */
+    default ResultadoEnvioVerifactu enviarAnulacion(
+            RegistroFacturacion registro) {
+
+        throw new IllegalStateException(
+                "El proveedor VERI*FACTU "
+                        + getNombre()
+                        + " no admite todavia registros "
+                        + "de ANULACION"
+        );
+    }
 }

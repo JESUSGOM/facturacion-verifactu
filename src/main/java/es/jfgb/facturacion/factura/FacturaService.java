@@ -436,6 +436,128 @@ public class FacturaService {
         );
     }
 
+    /**
+     * Anula una factura previamente emitida.
+     *
+     * La creacion del registro VERI*FACTU de ANULACION
+     * y el cambio de estado de la factura se realizan
+     * dentro de la misma transaccion.
+     *
+     * Este metodo NO realiza ningun envio a AEAT.
+     */
+    /**
+     * Anula una factura previamente emitida.
+     *
+     * La anulacion solo debe utilizarse cuando la factura
+     * no debio haberse emitido y no procede una factura
+     * rectificativa.
+     *
+     * Este metodo crea exclusivamente el registro local.
+     * NO realiza ningun envio a AEAT.
+     */
+    @Transactional
+    public FacturaResponse anular(
+            Long empresaId,
+            Long facturaId,
+            AnulacionFacturaRequest request) {
+
+        if (request == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Debe indicar los datos de la anulacion"
+            );
+        }
+
+        String motivo =
+                request.motivo() == null
+                        ? ""
+                        : request.motivo().trim();
+
+        if (motivo.isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Debe indicar el motivo de la anulacion"
+            );
+        }
+
+        if (motivo.length() > 500) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "El motivo de la anulacion no puede "
+                            + "superar 500 caracteres"
+            );
+        }
+
+        /*
+         * Esta confirmacion evita utilizar ANULACION
+         * como sustituto de una factura rectificativa.
+         */
+        if (!request.confirmarQueNoProcedeRectificativa()) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "La anulacion solo procede cuando la factura "
+                            + "no debio emitirse y no corresponde "
+                            + "emitir una factura rectificativa"
+            );
+        }
+
+        /*
+         * Bloqueamos la factura para impedir dos
+         * anulaciones concurrentes.
+         */
+        Factura factura =
+                obtenerFacturaConBloqueo(
+                        empresaId,
+                        facturaId
+                );
+
+        if (factura.getEstado()
+                != EstadoFactura.EMITIDA) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Solo se puede anular una factura "
+                            + "en estado EMITIDA"
+            );
+        }
+
+        /*
+         * La factura debe seguir EMITIDA mientras se
+         * construye el registro fiscal de anulacion.
+         */
+        registroFacturacionService
+                .crearAnulacion(
+                        factura
+                );
+
+        /*
+         * Si cualquier operacion posterior falla,
+         * toda esta transaccion se revierte.
+         */
+        factura.setEstado(
+                EstadoFactura.ANULADA
+        );
+
+        factura.setFechaAnulacion(
+                Instant.now()
+        );
+
+        factura.setMotivoAnulacion(
+                motivo
+        );
+
+        Factura anulada =
+                facturaRepository
+                        .saveAndFlush(
+                                factura
+                        );
+
+        return convertir(
+                anulada
+        );
+    }
+
     private void aplicarBorrador(
             Factura factura,
             Long empresaId,
