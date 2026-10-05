@@ -2,9 +2,12 @@ package es.jfgb.facturacion.verifactu.aeat;
 
 import es.gob.agenciatributaria.www2.static_files.common.internet.dep.aplicaciones.es.aeat.tike.cont.ws.suministroinformacion.CalificacionOperacionType;
 import es.gob.agenciatributaria.www2.static_files.common.internet.dep.aplicaciones.es.aeat.tike.cont.ws.suministroinformacion.ClaveTipoFacturaType;
+import es.gob.agenciatributaria.www2.static_files.common.internet.dep.aplicaciones.es.aeat.tike.cont.ws.suministroinformacion.ClaveTipoRectificativaType;
+import es.gob.agenciatributaria.www2.static_files.common.internet.dep.aplicaciones.es.aeat.tike.cont.ws.suministroinformacion.DesgloseRectificacionType;
 import es.gob.agenciatributaria.www2.static_files.common.internet.dep.aplicaciones.es.aeat.tike.cont.ws.suministroinformacion.DesgloseType;
 import es.gob.agenciatributaria.www2.static_files.common.internet.dep.aplicaciones.es.aeat.tike.cont.ws.suministroinformacion.DetalleType;
 import es.gob.agenciatributaria.www2.static_files.common.internet.dep.aplicaciones.es.aeat.tike.cont.ws.suministroinformacion.EncadenamientoFacturaAnteriorType;
+import es.gob.agenciatributaria.www2.static_files.common.internet.dep.aplicaciones.es.aeat.tike.cont.ws.suministroinformacion.IDFacturaARType;
 import es.gob.agenciatributaria.www2.static_files.common.internet.dep.aplicaciones.es.aeat.tike.cont.ws.suministroinformacion.IDFacturaExpedidaType;
 import es.gob.agenciatributaria.www2.static_files.common.internet.dep.aplicaciones.es.aeat.tike.cont.ws.suministroinformacion.PersonaFisicaJuridicaType;
 import es.gob.agenciatributaria.www2.static_files.common.internet.dep.aplicaciones.es.aeat.tike.cont.ws.suministroinformacion.PrimerRegistroCadenaType;
@@ -13,6 +16,7 @@ import es.gob.agenciatributaria.www2.static_files.common.internet.dep.aplicacion
 import es.gob.agenciatributaria.www2.static_files.common.internet.dep.aplicaciones.es.aeat.tike.cont.ws.suministroinformacion.SistemaInformaticoType;
 import es.jfgb.facturacion.verifactu.RegistroFacturacion;
 import es.jfgb.facturacion.verifactu.RegistroFacturacionDesglose;
+import es.jfgb.facturacion.verifactu.RegistroFacturacionRectificada;
 import es.jfgb.facturacion.verifactu.TipoRegistroFacturacion;
 import org.springframework.stereotype.Component;
 
@@ -87,6 +91,30 @@ public class AeatRegistroAltaMapper {
                 convertirTipoFactura(
                         registro.getTipoFactura()
                 )
+        );
+
+        /*
+         * =====================================================
+         * DATOS DE RECTIFICACION
+         * =====================================================
+         *
+         * Para F1 no se genera ninguno de estos bloques.
+         *
+         * Para R1-R5:
+         *
+         * - TipoRectificativa
+         * - FacturasRectificadas
+         *
+         * Para rectificacion S se añade ademas:
+         *
+         * - ImporteRectificacion
+         *
+         * En tipo I, ImporteRectificacion debe quedar ausente.
+         * =====================================================
+         */
+        mapearRectificacion(
+                alta,
+                registro
         );
 
         alta.setDescripcionOperacion(
@@ -230,6 +258,188 @@ public class AeatRegistroAltaMapper {
         );
 
         return idFactura;
+    }
+
+    private void mapearRectificacion(
+            RegistroFacturacionAltaType alta,
+            RegistroFacturacion registro) {
+
+        boolean rectificativa =
+                esRectificativa(
+                        registro.getTipoFactura()
+                );
+
+        if (!rectificativa) {
+
+            if (registro.getTipoRectificativa() != null
+                    || registro.getBaseRectificada() != null
+                    || registro.getCuotaRectificada() != null
+                    || (registro.getFacturasRectificadas() != null
+                    && !registro.getFacturasRectificadas()
+                    .isEmpty())) {
+
+                throw new IllegalStateException(
+                        "Una factura no rectificativa contiene "
+                                + "datos de rectificacion"
+                );
+            }
+
+            return;
+        }
+
+        if (registro.getTipoRectificativa() == null) {
+
+            throw new IllegalStateException(
+                    "La factura rectificativa no contiene "
+                            + "TipoRectificativa"
+            );
+        }
+
+        alta.setTipoRectificativa(
+                convertirTipoRectificativa(
+                        registro.getTipoRectificativa()
+                                .name()
+                )
+        );
+
+        alta.setFacturasRectificadas(
+                crearFacturasRectificadas(
+                        registro
+                )
+        );
+
+        switch (registro.getTipoRectificativa()) {
+
+            case I -> {
+
+                if (registro.getBaseRectificada() != null
+                        || registro.getCuotaRectificada() != null) {
+
+                    throw new IllegalStateException(
+                            "La rectificativa por diferencias "
+                                    + "no debe informar "
+                                    + "ImporteRectificacion"
+                    );
+                }
+            }
+
+            case S -> {
+
+                if (registro.getBaseRectificada() == null
+                        || registro.getCuotaRectificada() == null) {
+
+                    throw new IllegalStateException(
+                            "La rectificativa por sustitucion "
+                                    + "debe informar "
+                                    + "BaseRectificada y "
+                                    + "CuotaRectificada"
+                    );
+                }
+
+                DesgloseRectificacionType
+                        importeRectificacion =
+                        new DesgloseRectificacionType();
+
+                importeRectificacion.setBaseRectificada(
+                        importeObligatorio(
+                                registro.getBaseRectificada(),
+                                "BaseRectificada"
+                        )
+                );
+
+                importeRectificacion.setCuotaRectificada(
+                        importeObligatorio(
+                                registro.getCuotaRectificada(),
+                                "CuotaRectificada"
+                        )
+                );
+
+                /*
+                 * CuotaRecargoRectificado permanece ausente
+                 * mientras Gombeth Factura no modele recargo
+                 * de equivalencia rectificado en el snapshot.
+                 */
+
+                alta.setImporteRectificacion(
+                        importeRectificacion
+                );
+            }
+        }
+    }
+
+    private RegistroFacturacionAltaType.FacturasRectificadas
+    crearFacturasRectificadas(
+            RegistroFacturacion registro) {
+
+        List<RegistroFacturacionRectificada> origenes =
+                registro.getFacturasRectificadas();
+
+        if (origenes == null
+                || origenes.isEmpty()) {
+
+            throw new IllegalStateException(
+                    "La factura rectificativa no identifica "
+                            + "ninguna factura rectificada"
+            );
+        }
+
+        if (origenes.size() > 1000) {
+
+            throw new IllegalStateException(
+                    "La factura rectificativa contiene mas "
+                            + "de 1000 facturas rectificadas"
+            );
+        }
+
+        RegistroFacturacionAltaType.FacturasRectificadas
+                facturasRectificadas =
+                new RegistroFacturacionAltaType
+                        .FacturasRectificadas();
+
+        for (RegistroFacturacionRectificada origen
+                : origenes) {
+
+            if (origen == null) {
+
+                throw new IllegalStateException(
+                        "Se ha encontrado una factura "
+                                + "rectificada nula"
+                );
+            }
+
+            IDFacturaARType idFactura =
+                    new IDFacturaARType();
+
+            idFactura.setIDEmisorFactura(
+                    obligatorio(
+                            origen.getNifEmisor(),
+                            "IDEmisorFactura "
+                                    + "de factura rectificada"
+                    )
+            );
+
+            idFactura.setNumSerieFactura(
+                    obligatorio(
+                            origen.getNumSerieFactura(),
+                            "NumSerieFactura "
+                                    + "de factura rectificada"
+                    )
+            );
+
+            idFactura.setFechaExpedicionFactura(
+                    formatearFecha(
+                            origen.getFechaExpedicion()
+                    )
+            );
+
+            facturasRectificadas
+                    .getIDFacturaRectificada()
+                    .add(
+                            idFactura
+                    );
+        }
+
+        return facturasRectificadas;
     }
 
     private RegistroFacturacionAltaType.Destinatarios
@@ -619,6 +829,33 @@ public class AeatRegistroAltaMapper {
         }
     }
 
+    private ClaveTipoRectificativaType
+    convertirTipoRectificativa(
+            String valor) {
+
+        String texto =
+                obligatorio(
+                        valor,
+                        "TipoRectificativa"
+                );
+
+        try {
+
+            return ClaveTipoRectificativaType
+                    .fromValue(
+                            texto
+                    );
+
+        } catch (IllegalArgumentException e) {
+
+            throw new IllegalStateException(
+                    "TipoRectificativa AEAT no valida: "
+                            + texto,
+                    e
+            );
+        }
+    }
+
     private CalificacionOperacionType
     convertirCalificacionOperacion(
             String valor) {
@@ -672,6 +909,19 @@ public class AeatRegistroAltaMapper {
                     e
             );
         }
+    }
+
+    private boolean esRectificativa(
+            String tipoFactura) {
+
+        if (tipoFactura == null) {
+            return false;
+        }
+
+        return switch (tipoFactura.trim()) {
+            case "R1", "R2", "R3", "R4", "R5" -> true;
+            default -> false;
+        };
     }
 
     private javax.xml.datatype.XMLGregorianCalendar
