@@ -2,6 +2,7 @@ package es.jfgb.facturacion.verifactu;
 
 import es.jfgb.facturacion.empresa.Empresa;
 import es.jfgb.facturacion.factura.Factura;
+import es.jfgb.facturacion.factura.TipoRectificativa;
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -80,6 +81,30 @@ public class RegistroFacturacion {
             updatable = false
     )
     private String tipoFactura;
+
+    @Enumerated(EnumType.STRING)
+    @Column(
+            name = "tipo_rectificativa",
+            length = 1,
+            updatable = false
+    )
+    private TipoRectificativa tipoRectificativa;
+
+    @Column(
+            name = "base_rectificada",
+            precision = 15,
+            scale = 2,
+            updatable = false
+    )
+    private BigDecimal baseRectificada;
+
+    @Column(
+            name = "cuota_rectificada",
+            precision = 15,
+            scale = 2,
+            updatable = false
+    )
+    private BigDecimal cuotaRectificada;
 
     @Column(
             name = "cuota_total",
@@ -275,6 +300,15 @@ public class RegistroFacturacion {
     private List<RegistroFacturacionDesglose> desgloses =
             new ArrayList<>();
 
+    @OneToMany(
+            mappedBy = "registroFacturacion",
+            cascade = CascadeType.PERSIST,
+            fetch = FetchType.LAZY
+    )
+    @OrderBy("orden ASC")
+    private List<RegistroFacturacionRectificada> facturasRectificadas =
+            new ArrayList<>();
+
     /*
      * =========================================================
      * Estado de envío
@@ -376,6 +410,20 @@ public class RegistroFacturacion {
         desgloses.add(desglose);
     }
 
+    public void addFacturaRectificada(
+            RegistroFacturacionRectificada rectificada) {
+
+        if (rectificada == null) {
+            return;
+        }
+
+        rectificada.setRegistroFacturacion(this);
+
+        facturasRectificadas.add(
+                rectificada
+        );
+    }
+
     /*
      * =========================================================
      * Getters / Setters
@@ -450,6 +498,36 @@ public class RegistroFacturacion {
 
     public void setTipoFactura(String tipoFactura) {
         this.tipoFactura = tipoFactura;
+    }
+
+    public TipoRectificativa getTipoRectificativa() {
+        return tipoRectificativa;
+    }
+
+    public void setTipoRectificativa(
+            TipoRectificativa tipoRectificativa) {
+
+        this.tipoRectificativa = tipoRectificativa;
+    }
+
+    public BigDecimal getBaseRectificada() {
+        return baseRectificada;
+    }
+
+    public void setBaseRectificada(
+            BigDecimal baseRectificada) {
+
+        this.baseRectificada = baseRectificada;
+    }
+
+    public BigDecimal getCuotaRectificada() {
+        return cuotaRectificada;
+    }
+
+    public void setCuotaRectificada(
+            BigDecimal cuotaRectificada) {
+
+        this.cuotaRectificada = cuotaRectificada;
     }
 
     public BigDecimal getCuotaTotal() {
@@ -668,6 +746,10 @@ public class RegistroFacturacion {
 
     public List<RegistroFacturacionDesglose> getDesgloses() {
         return desgloses;
+    }
+
+    public List<RegistroFacturacionRectificada> getFacturasRectificadas() {
+        return facturasRectificadas;
     }
 
     public EstadoEnvioRegistro getEstadoEnvio() {

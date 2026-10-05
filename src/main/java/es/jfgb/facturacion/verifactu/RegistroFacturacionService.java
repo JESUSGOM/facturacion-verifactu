@@ -5,6 +5,8 @@ import es.jfgb.facturacion.empresa.EmpresaRepository;
 import es.jfgb.facturacion.factura.Factura;
 import es.jfgb.facturacion.factura.EstadoFactura;
 import es.jfgb.facturacion.factura.FacturaLinea;
+import es.jfgb.facturacion.factura.FacturaRectificada;
+import es.jfgb.facturacion.factura.TipoRectificativa;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -186,10 +188,14 @@ public class RegistroFacturacionService {
                         .withNano(0);
 
         /*
-         * Primera versión:
-         * factura ordinaria/completa F1.
+         * El tipo fiscal se obtiene de la propia factura.
+         *
+         * Esto mantiene F1 para las facturas ordinarias
+         * y prepara el registro para R1-R5 sin introducir
+         * valores fiscales codificados de forma fija.
          */
-        String tipoFactura = "F1";
+        String tipoFactura =
+                factura.getTipoFactura().name();
 
         String huella =
                 huellaVerifactuService.calcularAlta(
@@ -249,6 +255,120 @@ public class RegistroFacturacionService {
         registro.setTipoFactura(
                 tipoFactura
         );
+
+        /*
+         * Snapshot específico de rectificación.
+         *
+         * Para I no se comunican BaseRectificada ni
+         * CuotaRectificada.
+         *
+         * Para S ambos importes forman parte del
+         * registro fiscal.
+         */
+        if (factura.getTipoFactura().esRectificativa()) {
+
+            registro.setTipoRectificativa(
+                    factura.getTipoRectificativa()
+            );
+
+            if (factura.getTipoRectificativa()
+                    == TipoRectificativa.S) {
+
+                registro.setBaseRectificada(
+                        normalizarImporte(
+                                factura.getBaseRectificada()
+                        )
+                );
+
+                registro.setCuotaRectificada(
+                        normalizarImporte(
+                                factura.getCuotaRectificada()
+                        )
+                );
+
+            } else {
+
+                registro.setBaseRectificada(
+                        null
+                );
+
+                registro.setCuotaRectificada(
+                        null
+                );
+            }
+
+        } else {
+
+            registro.setTipoRectificativa(
+                    null
+            );
+
+            registro.setBaseRectificada(
+                    null
+            );
+
+            registro.setCuotaRectificada(
+                    null
+            );
+        }
+
+        /*
+         * Snapshot de las facturas originales identificadas
+         * por la rectificativa.
+         *
+         * Guardamos los datos fiscales necesarios para
+         * reconstruir FacturasRectificadas sin depender
+         * posteriormente de la entidad Factura original.
+         */
+        if (factura.getTipoFactura().esRectificativa()) {
+
+            for (FacturaRectificada relacion
+                    : factura.getFacturasRectificadas()) {
+
+                Factura original =
+                        relacion.getFacturaRectificada();
+
+                String numSerieOriginal =
+                        original.getSerie().getCodigo()
+                                + "-"
+                                + original.getNumero();
+
+                RegistroFacturacionRectificada snapshot =
+                        new RegistroFacturacionRectificada();
+
+                snapshot.setFacturaRectificadaId(
+                        original.getId()
+                );
+
+                snapshot.setOrden(
+                        relacion.getOrden().shortValue()
+                );
+
+                snapshot.setNifEmisor(
+                        obligatorio(
+                                original.getEmpresaNif(),
+                                "NIF de factura rectificada",
+                                20
+                        )
+                );
+
+                snapshot.setNumSerieFactura(
+                        obligatorio(
+                                numSerieOriginal,
+                                "Numero/serie de factura rectificada",
+                                60
+                        )
+                );
+
+                snapshot.setFechaExpedicion(
+                        original.getFechaExpedicion()
+                );
+
+                registro.addFacturaRectificada(
+                        snapshot
+                );
+            }
+        }
 
         registro.setCuotaTotal(
                 normalizarImporte(
@@ -693,6 +813,90 @@ public class RegistroFacturacionService {
                     "La factura no tiene "
                             + "fecha de expedición"
             );
+        }
+
+        if (factura.getTipoFactura() == null) {
+            throw error(
+                    "La factura no tiene tipo fiscal"
+            );
+        }
+
+        if (factura.getTipoFactura().esRectificativa()) {
+
+            if (factura.getTipoRectificativa() == null) {
+                throw error(
+                        "La factura rectificativa no tiene "
+                                + "tipo de rectificacion S/I"
+                );
+            }
+
+            if (factura.getTipoRectificativa()
+                    == TipoRectificativa.I) {
+
+                if (factura.getBaseRectificada() != null
+                        || factura.getCuotaRectificada() != null) {
+
+                    throw error(
+                            "Una rectificativa por diferencias "
+                                    + "no debe informar "
+                                    + "base/cuota rectificada"
+                    );
+                }
+            }
+
+            if (factura.getTipoRectificativa()
+                    == TipoRectificativa.S) {
+
+                if (factura.getBaseRectificada() == null
+                        || factura.getCuotaRectificada() == null) {
+
+                    throw error(
+                            "Una rectificativa por sustitucion "
+                                    + "debe informar "
+                                    + "base/cuota rectificada"
+                    );
+                }
+            }
+
+            if (factura.getFacturasRectificadas() == null
+                    || factura.getFacturasRectificadas().isEmpty()) {
+
+                throw error(
+                        "La factura rectificativa no identifica "
+                                + "ninguna factura original"
+                );
+            }
+
+            for (FacturaRectificada relacion
+                    : factura.getFacturasRectificadas()) {
+
+                if (relacion == null
+                        || relacion.getOrden() == null
+                        || relacion.getFacturaRectificada() == null) {
+
+                    throw error(
+                            "Existe una referencia de factura "
+                                    + "rectificada incompleta"
+                    );
+                }
+
+                Factura original =
+                        relacion.getFacturaRectificada();
+
+                if (original.getEmpresaNif() == null
+                        || original.getEmpresaNif().isBlank()
+                        || original.getSerie() == null
+                        || original.getSerie().getCodigo() == null
+                        || original.getSerie().getCodigo().isBlank()
+                        || original.getNumero() == null
+                        || original.getFechaExpedicion() == null) {
+
+                    throw error(
+                            "La factura original no tiene "
+                                    + "identificacion fiscal completa"
+                    );
+                }
+            }
         }
 
         if (factura.getBaseImponible() == null
