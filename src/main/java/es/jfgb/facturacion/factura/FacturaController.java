@@ -40,6 +40,17 @@ public class FacturaController {
         );
     }
 
+    @PostMapping("/rectificativas")
+    @ResponseStatus(HttpStatus.CREATED)
+    public FacturaResponse crearRectificativa(
+            @PathVariable Long empresaId,
+            @Valid @RequestBody FacturaRectificativaRequest request) {
+
+        return facturaService.crearBorradorRectificativo(
+                empresaId,
+                request
+        );
+    }
     @GetMapping
     public List<FacturaResponse> listar(
             @PathVariable Long empresaId) {

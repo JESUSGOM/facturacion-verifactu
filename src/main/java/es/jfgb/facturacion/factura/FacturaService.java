@@ -8,6 +8,7 @@ import es.jfgb.facturacion.producto.Producto;
 import es.jfgb.facturacion.producto.ProductoRepository;
 import es.jfgb.facturacion.serie.SerieFacturacion;
 import es.jfgb.facturacion.serie.SerieFacturacionRepository;
+import es.jfgb.facturacion.serie.TipoSerieFacturacion;
 import es.jfgb.facturacion.verifactu.RegistroFacturacionService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -18,7 +19,9 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class FacturaService {
@@ -123,6 +126,616 @@ public class FacturaService {
         );
     }
 
+    /**
+     * Crea una factura rectificativa en estado BORRADOR.
+     *
+     * En esta fase no se crea ningun registro VERI*FACTU
+     * y no se realiza ningun envio a AEAT.
+     */
+    @Transactional
+    public FacturaResponse crearBorradorRectificativo(
+            Long empresaId,
+            FacturaRectificativaRequest request) {
+
+        if (request == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Debe indicar los datos de la factura rectificativa"
+            );
+        }
+
+        Empresa empresa =
+                empresaRepository
+                        .findById(
+                                empresaId
+                        )
+                        .orElseThrow(() ->
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
+                                        "Empresa no encontrada"
+                                ));
+
+        if (!empresa.isActiva()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "La empresa no esta activa"
+            );
+        }
+
+        if (request.tipoFactura() == null
+                || !request.tipoFactura().esRectificativa()) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "El tipo de factura debe ser rectificativo"
+            );
+        }
+
+        /*
+         * R5 rectifica una factura simplificada.
+         *
+         * El programa todavia no genera F2, por lo que no
+         * permitimos crear una R5 que no pueda vincularse
+         * correctamente a una factura simplificada.
+         */
+        if (request.tipoFactura() == TipoFactura.R5) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "R5 requiere rectificar una factura simplificada F2, "
+                            + "todavia no soportada"
+            );
+        }
+
+        if (request.tipoRectificativa() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Debe indicar el tipo de rectificacion I o S"
+            );
+        }
+
+        String motivo =
+                request.motivoRectificacion() == null
+                        ? ""
+                        : request.motivoRectificacion().trim();
+
+        if (motivo.isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Debe indicar el motivo de la rectificacion"
+            );
+        }
+
+        if (motivo.length() > 500) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "El motivo de la rectificacion no puede superar "
+                            + "500 caracteres"
+            );
+        }
+
+        SerieFacturacion serie =
+                obtenerSerieActiva(
+                        empresaId,
+                        request.serieId()
+                );
+
+        if (serie.getTipoSerie()
+                != TipoSerieFacturacion.RECTIFICATIVA) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "La serie seleccionada no es una serie rectificativa"
+            );
+        }
+
+        if (request.facturasRectificadasIds() == null
+                || request.facturasRectificadasIds().isEmpty()) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Debe indicar al menos una factura original"
+            );
+        }
+
+        /*
+         * Evitamos insertar dos veces la misma factura original.
+         */
+        Set<Long> idsUnicos =
+                new HashSet<>();
+
+        for (Long originalId
+                : request.facturasRectificadasIds()) {
+
+            if (originalId == null
+                    || !idsUnicos.add(originalId)) {
+
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Las facturas originales no pueden contener "
+                                + "identificadores nulos o duplicados"
+                );
+            }
+        }
+
+        Factura factura =
+                new Factura();
+
+        factura.setEmpresa(
+                empresa
+        );
+
+        factura.setSerie(
+                serie
+        );
+
+        factura.setEstado(
+                EstadoFactura.BORRADOR
+        );
+
+        factura.setNumero(
+                null
+        );
+
+        factura.setFechaExpedicion(
+                null
+        );
+
+        factura.setFechaEmision(
+                null
+        );
+
+        factura.setTipoFactura(
+                request.tipoFactura()
+        );
+
+        factura.setTipoRectificativa(
+                request.tipoRectificativa()
+        );
+
+        factura.setMotivoRectificacion(
+                motivo
+        );
+
+        if (request.observaciones() == null
+                || request.observaciones().isBlank()) {
+
+            factura.setObservaciones(
+                    null
+            );
+
+        } else {
+
+            factura.setObservaciones(
+                    request.observaciones().trim()
+            );
+        }
+
+        Cliente cliente = null;
+        Factura primeraOriginal = null;
+
+        BigDecimal baseOriginal =
+                BigDecimal.ZERO;
+
+        BigDecimal cuotaOriginal =
+                BigDecimal.ZERO;
+
+        int ordenOriginal = 1;
+
+        for (Long originalId
+                : request.facturasRectificadasIds()) {
+
+            Factura original =
+                    facturaRepository
+                            .findByIdAndEmpresa_Id(
+                                    originalId,
+                                    empresaId
+                            )
+                            .orElseThrow(() ->
+                                    new ResponseStatusException(
+                                            HttpStatus.NOT_FOUND,
+                                            "Factura original no encontrada: "
+                                                    + originalId
+                                    ));
+
+            if (original.getEstado()
+                    != EstadoFactura.EMITIDA) {
+
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "La factura original "
+                                + originalId
+                                + " no esta en estado EMITIDA"
+                );
+            }
+
+            /*
+             * Primera version del circuito:
+             * rectificamos facturas completas F1.
+             *
+             * R5 queda reservado para F2 cuando el programa
+             * incorpore factura simplificada.
+             */
+            if (original.getTipoFactura()
+                    != TipoFactura.F1) {
+
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Por ahora solo se pueden rectificar "
+                                + "facturas originales F1"
+                );
+            }
+
+            if (cliente == null) {
+
+                cliente =
+                        original.getCliente();
+
+                primeraOriginal =
+                        original;
+
+            } else if (!cliente.getId().equals(
+                    original.getCliente().getId()
+            )) {
+
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Todas las facturas originales deben "
+                                + "pertenecer al mismo cliente"
+                );
+            }
+
+            baseOriginal =
+                    baseOriginal.add(
+                            original.getBaseImponible()
+                    );
+
+            cuotaOriginal =
+                    cuotaOriginal.add(
+                            original.getCuotaImpuesto()
+                    );
+
+            FacturaRectificada relacion =
+                    new FacturaRectificada();
+
+            relacion.setFacturaRectificada(
+                    original
+            );
+
+            relacion.setOrden(
+                    ordenOriginal++
+            );
+
+            factura.agregarFacturaRectificada(
+                    relacion
+            );
+        }
+
+        if (cliente == null
+                || primeraOriginal == null) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "No se ha podido determinar la factura original"
+            );
+        }
+
+        factura.setCliente(
+                cliente
+        );
+
+        /*
+         * Conservamos el snapshot historico del destinatario
+         * de la primera factura original.
+         *
+         * No dependemos de que el maestro Cliente se haya
+         * modificado posteriormente.
+         */
+        copiarDatosClienteDesdeFactura(
+                factura,
+                primeraOriginal
+        );
+
+        if (request.tipoRectificativa()
+                == TipoRectificativa.I) {
+
+            factura.setBaseRectificada(
+                    null
+            );
+
+            factura.setCuotaRectificada(
+                    null
+            );
+
+        } else {
+
+            factura.setBaseRectificada(
+                    baseOriginal.setScale(
+                            2,
+                            RoundingMode.HALF_UP
+                    )
+            );
+
+            factura.setCuotaRectificada(
+                    cuotaOriginal.setScale(
+                            2,
+                            RoundingMode.HALF_UP
+                    )
+            );
+        }
+
+        BigDecimal baseTotal =
+                BigDecimal.ZERO;
+
+        BigDecimal cuotaTotal =
+                BigDecimal.ZERO;
+
+        BigDecimal totalFactura =
+                BigDecimal.ZERO;
+
+        int ordenLinea = 1;
+
+        for (FacturaRectificativaLineaRequest lineaRequest
+                : request.lineas()) {
+
+            int signo =
+                    lineaRequest.signo();
+
+            if (signo != 1
+                    && signo != -1) {
+
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "El signo de una linea rectificativa "
+                                + "debe ser 1 o -1"
+                );
+            }
+
+            /*
+             * En sustitucion las lineas representan
+             * los nuevos importes correctos.
+             */
+            if (request.tipoRectificativa()
+                    == TipoRectificativa.S
+                    && signo != 1) {
+
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Una rectificativa por sustitucion "
+                                + "no puede contener lineas negativas"
+                );
+            }
+
+            Producto producto = null;
+
+            /*
+             * El producto es solamente una referencia opcional.
+             * No tomamos de el precio, descripcion ni impuesto.
+             */
+            if (lineaRequest.productoId() != null) {
+
+                producto =
+                        productoRepository
+                                .findByIdAndEmpresa_Id(
+                                        lineaRequest.productoId(),
+                                        empresaId
+                                )
+                                .orElseThrow(() ->
+                                        new ResponseStatusException(
+                                                HttpStatus.NOT_FOUND,
+                                                "Producto o servicio no encontrado: "
+                                                        + lineaRequest.productoId()
+                                        ));
+            }
+
+            String descripcion =
+                    lineaRequest.descripcion() == null
+                            ? ""
+                            : lineaRequest.descripcion().trim();
+
+            if (descripcion.isBlank()) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "La descripcion de la linea es obligatoria"
+                );
+            }
+
+            BigDecimal cantidad =
+                    lineaRequest.cantidad();
+
+            BigDecimal precioUnitario =
+                    lineaRequest.precioUnitario();
+
+            BigDecimal porcentaje =
+                    lineaRequest.porcentajeImpuesto();
+
+            if (cantidad == null
+                    || cantidad.signum() <= 0) {
+
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "La cantidad debe ser mayor que cero"
+                );
+            }
+
+            if (precioUnitario == null
+                    || precioUnitario.signum() < 0) {
+
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "El precio unitario no puede ser negativo"
+                );
+            }
+
+            if (porcentaje == null
+                    || porcentaje.compareTo(BigDecimal.ZERO) < 0
+                    || porcentaje.compareTo(
+                            new BigDecimal("100")
+                    ) > 0) {
+
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "El porcentaje de impuesto debe estar "
+                                + "entre 0 y 100"
+                );
+            }
+
+            BigDecimal basePositiva =
+                    cantidad
+                            .multiply(
+                                    precioUnitario
+                            )
+                            .setScale(
+                                    2,
+                                    RoundingMode.HALF_UP
+                            );
+
+            BigDecimal cuotaPositiva =
+                    basePositiva
+                            .multiply(
+                                    porcentaje
+                            )
+                            .divide(
+                                    new BigDecimal("100"),
+                                    2,
+                                    RoundingMode.HALF_UP
+                            );
+
+            BigDecimal factorSigno =
+                    BigDecimal.valueOf(
+                            signo
+                    );
+
+            BigDecimal base =
+                    basePositiva
+                            .multiply(
+                                    factorSigno
+                            )
+                            .setScale(
+                                    2,
+                                    RoundingMode.HALF_UP
+                            );
+
+            BigDecimal cuota =
+                    cuotaPositiva
+                            .multiply(
+                                    factorSigno
+                            )
+                            .setScale(
+                                    2,
+                                    RoundingMode.HALF_UP
+                            );
+
+            BigDecimal totalLinea =
+                    base
+                            .add(
+                                    cuota
+                            )
+                            .setScale(
+                                    2,
+                                    RoundingMode.HALF_UP
+                            );
+
+            FacturaLinea linea =
+                    new FacturaLinea();
+
+            linea.setProducto(
+                    producto
+            );
+
+            linea.setDescripcion(
+                    descripcion
+            );
+
+            /*
+             * Cantidad y precio permanecen positivos.
+             * El sentido economico se almacena en signo.
+             */
+            linea.setCantidad(
+                    cantidad
+            );
+
+            linea.setPrecioUnitario(
+                    precioUnitario
+            );
+
+            linea.setSigno(
+                    signo
+            );
+
+            linea.setTipoImpuesto(
+                    lineaRequest.tipoImpuesto()
+            );
+
+            linea.setPorcentajeImpuesto(
+                    porcentaje
+            );
+
+            linea.setBaseImponible(
+                    base
+            );
+
+            linea.setCuotaImpuesto(
+                    cuota
+            );
+
+            linea.setTotal(
+                    totalLinea
+            );
+
+            linea.setOrden(
+                    ordenLinea++
+            );
+
+            factura.agregarLinea(
+                    linea
+            );
+
+            baseTotal =
+                    baseTotal.add(
+                            base
+                    );
+
+            cuotaTotal =
+                    cuotaTotal.add(
+                            cuota
+                    );
+
+            totalFactura =
+                    totalFactura.add(
+                            totalLinea
+                    );
+        }
+
+        factura.setBaseImponible(
+                baseTotal.setScale(
+                        2,
+                        RoundingMode.HALF_UP
+                )
+        );
+
+        factura.setCuotaImpuesto(
+                cuotaTotal.setScale(
+                        2,
+                        RoundingMode.HALF_UP
+                )
+        );
+
+        factura.setTotal(
+                totalFactura.setScale(
+                        2,
+                        RoundingMode.HALF_UP
+                )
+        );
+
+        Factura guardada =
+                facturaRepository.saveAndFlush(
+                        factura
+                );
+
+        return convertir(
+                guardada
+        );
+    }
     @Transactional
     public FacturaResponse modificarBorrador(
             Long empresaId,
@@ -139,6 +752,16 @@ public class FacturaService {
                 factura,
                 "Solo se puede modificar una factura en estado BORRADOR"
         );
+
+        if (factura.getTipoFactura() != null
+                && factura.getTipoFactura().esRectificativa()) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Una factura rectificativa debe modificarse "
+                            + "mediante su circuito especifico"
+            );
+        }
 
         Cliente cliente =
                 obtenerClienteActivo(
@@ -263,6 +886,23 @@ public class FacturaService {
                 "Solo se puede emitir una factura en estado BORRADOR"
         );
 
+        /*
+         * Proteccion temporal.
+         *
+         * RegistroFacturacionService todavia genera el ALTA
+         * VERI*FACTU como F1. Hasta adaptar ese circuito no
+         * permitimos emitir una R1-R5.
+         */
+        if (factura.getTipoFactura() != null
+                && factura.getTipoFactura().esRectificativa()) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "La emision de facturas rectificativas permanece "
+                            + "bloqueada hasta completar su integracion "
+                            + "VERI*FACTU"
+            );
+        }
 
         if (factura.getEmpresa() == null
                 || !factura.getEmpresa().isActiva()) {
@@ -905,6 +1545,38 @@ public class FacturaService {
         );
     }
 
+    private void copiarDatosClienteDesdeFactura(
+            Factura destino,
+            Factura origen) {
+
+        destino.setClienteNif(
+                origen.getClienteNif()
+        );
+
+        destino.setClienteNombre(
+                origen.getClienteNombre()
+        );
+
+        destino.setClienteDireccion(
+                origen.getClienteDireccion()
+        );
+
+        destino.setClienteCodigoPostal(
+                origen.getClienteCodigoPostal()
+        );
+
+        destino.setClienteMunicipio(
+                origen.getClienteMunicipio()
+        );
+
+        destino.setClienteProvincia(
+                origen.getClienteProvincia()
+        );
+
+        destino.setClienteCodigoPais(
+                origen.getClienteCodigoPais()
+        );
+    }
     private FacturaResponse convertir(
             Factura factura) {
 
@@ -913,6 +1585,14 @@ public class FacturaService {
                         .stream()
                         .map(
                                 this::convertirLinea
+                        )
+                        .toList();
+
+        List<FacturaRectificadaResponse> facturasRectificadas =
+                factura.getFacturasRectificadas()
+                        .stream()
+                        .map(
+                                this::convertirFacturaRectificada
                         )
                         .toList();
 
@@ -926,6 +1606,12 @@ public class FacturaService {
                 factura.getEstado(),
                 factura.getNumero(),
                 factura.getFechaExpedicion(),
+
+                factura.getTipoFactura(),
+                factura.getTipoRectificativa(),
+                factura.getMotivoRectificacion(),
+                factura.getBaseRectificada(),
+                factura.getCuotaRectificada(),
 
                 factura.getObservaciones(),
 
@@ -948,10 +1634,39 @@ public class FacturaService {
                 factura.getFechaAnulacion(),
                 factura.getMotivoAnulacion(),
 
+                facturasRectificadas,
+
                 lineas
         );
     }
 
+    private FacturaRectificadaResponse convertirFacturaRectificada(
+            FacturaRectificada relacion) {
+
+        Factura original =
+                relacion.getFacturaRectificada();
+
+        Long serieId =
+                original.getSerie() != null
+                        ? original.getSerie().getId()
+                        : null;
+
+        String serieCodigo =
+                original.getSerie() != null
+                        ? original.getSerie().getCodigo()
+                        : null;
+
+        return new FacturaRectificadaResponse(
+                original.getId(),
+                serieId,
+                serieCodigo,
+                original.getNumero(),
+                original.getFechaExpedicion(),
+                original.getBaseImponible(),
+                original.getCuotaImpuesto(),
+                original.getTotal()
+        );
+    }
     private FacturaLineaResponse convertirLinea(
             FacturaLinea linea) {
 
