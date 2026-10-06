@@ -63,6 +63,14 @@ public class FacturaController {
                 request
         );
     }
+    @GetMapping("/rectificables")
+    public List<FacturaResponse> listarRectificables(
+            @PathVariable Long empresaId) {
+
+        return facturaService.listarRectificables(
+                empresaId
+        );
+    }
     @GetMapping
     public List<FacturaResponse> listar(
             @PathVariable Long empresaId) {

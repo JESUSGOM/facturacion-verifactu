@@ -16,6 +16,12 @@ public interface FacturaRepository
             Long empresaId
     );
 
+    List<Factura> findAllByEmpresa_IdAndEstadoAndTipoFacturaOrderByIdDesc(
+            Long empresaId,
+            EstadoFactura estado,
+            TipoFactura tipoFactura
+    );
+
     Optional<Factura> findByIdAndEmpresa_Id(
             Long id,
             Long empresaId

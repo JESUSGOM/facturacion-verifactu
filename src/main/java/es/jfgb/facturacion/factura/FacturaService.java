@@ -963,6 +963,24 @@ public class FacturaService {
     }
 
     @Transactional(readOnly = true)
+    public List<FacturaResponse> listarRectificables(
+            Long empresaId) {
+
+        comprobarEmpresa(
+                empresaId
+        );
+
+        return facturaRepository
+                .findAllByEmpresa_IdAndEstadoAndTipoFacturaOrderByIdDesc(
+                        empresaId,
+                        EstadoFactura.EMITIDA,
+                        TipoFactura.F1
+                )
+                .stream()
+                .map(this::convertir)
+                .toList();
+    }
+    @Transactional(readOnly = true)
     public List<FacturaResponse> listar(
             Long empresaId) {
 
