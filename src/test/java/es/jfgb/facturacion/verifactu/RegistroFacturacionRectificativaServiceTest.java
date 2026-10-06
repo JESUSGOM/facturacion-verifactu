@@ -9,6 +9,9 @@ import es.jfgb.facturacion.factura.FacturaRectificada;
 import es.jfgb.facturacion.factura.TipoFactura;
 import es.jfgb.facturacion.factura.TipoRectificativa;
 import es.jfgb.facturacion.serie.SerieFacturacion;
+import es.jfgb.facturacion.verifactu.aeat.AeatRegistroAltaMapper;
+import es.jfgb.facturacion.verifactu.aeat.AeatSolicitudAltaXmlBuilder;
+import es.jfgb.facturacion.verifactu.aeat.AeatXmlSchemaValidator;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
@@ -16,10 +19,12 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -96,6 +101,114 @@ class RegistroFacturacionRectificativaServiceTest {
         );
     }
 
+    @Test
+    void generaXmlRectificativoValidoDesdeSnapshotLocal() {
+
+        Contexto contexto =
+                prepararContexto(
+                        TipoRectificativa.I
+                );
+
+        Factura factura =
+                contexto.factura();
+
+        factura.setBaseRectificada(
+                null
+        );
+
+        factura.setCuotaRectificada(
+                null
+        );
+
+        factura.setBaseImponible(
+                new BigDecimal("-100.00")
+        );
+
+        factura.setCuotaImpuesto(
+                new BigDecimal("-7.00")
+        );
+
+        factura.setTotal(
+                new BigDecimal("-107.00")
+        );
+
+        factura.agregarLinea(
+                crearLinea(
+                        "-100.00",
+                        "-7.00",
+                        "-107.00"
+                )
+        );
+
+        RegistroFacturacion registro =
+                contexto.service().crearAlta(
+                        factura
+                );
+
+        /*
+         * El repositorio esta simulado.
+         *
+         * Marcamos el registro como persistido para poder
+         * recorrer tambien el builder XML, que exige ID.
+         */
+        asignarId(
+                registro,
+                30L
+        );
+
+        assertNotNull(
+                registro.getHuella()
+        );
+
+        assertEquals(
+                64,
+                registro.getHuella().length()
+        );
+
+        AeatSolicitudAltaXmlBuilder xmlBuilder =
+                new AeatSolicitudAltaXmlBuilder(
+                        new AeatRegistroAltaMapper()
+                );
+
+        String xml =
+                xmlBuilder.generarXml(
+                        registro
+                );
+
+        assertNotNull(
+                xml
+        );
+
+        assertTrue(
+                xml.contains(
+                        "R1"
+                ),
+                xml
+        );
+
+        assertTrue(
+                xml.contains(
+                        "FAC-7"
+                ),
+                xml
+        );
+
+        assertTrue(
+                xml.contains(
+                        "B12345678"
+                ),
+                xml
+        );
+
+        AeatXmlSchemaValidator validator =
+                new AeatXmlSchemaValidator();
+
+        assertDoesNotThrow(
+                () -> validator.validar(
+                        xml
+                )
+        );
+    }
     @Test
     void creaSnapshotRectificativaPorSustitucion() {
 
@@ -361,7 +474,7 @@ class RegistroFacturacionRectificativaServiceTest {
         when(
                 sistemaProperties.getNif()
         ).thenReturn(
-                "TESTSIF001"
+                "B12345678"
         );
 
         when(
