@@ -6,6 +6,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.openpdf.text.pdf.PdfReader;
+import org.openpdf.text.pdf.parser.PdfTextExtractor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -117,6 +118,232 @@ class FacturaPdfServiceTest {
         reader.close();
     }
 
+    @Test
+    void facturaRectificativaPorDiferenciasMuestraDatosFiscales()
+            throws Exception {
+
+        when(
+                facturaService.obtener(
+                        1L,
+                        200L
+                )
+        ).thenReturn(
+                respuestaRectificativa(
+                        TipoRectificativa.I
+                )
+        );
+
+        when(
+                facturaRepository.findByIdAndEmpresa_Id(
+                        200L,
+                        1L
+                )
+        ).thenReturn(
+                Optional.of(
+                        facturaPersistida()
+                )
+        );
+
+        when(
+                qrFacturaService.generarPng(
+                        1L,
+                        200L
+                )
+        ).thenReturn(
+                crearPng()
+        );
+
+        byte[] pdf =
+                service.generar(
+                        1L,
+                        200L
+                );
+
+        String textoPdf =
+                extraerTextoPdf(
+                        pdf
+                );
+
+        assertTrue(
+                textoPdf.contains(
+                        "FACTURA RECTIFICATIVA"
+                ),
+                textoPdf
+        );
+
+        assertTrue(
+                textoPdf.contains(
+                        "R1"
+                ),
+                textoPdf
+        );
+
+        assertTrue(
+                textoPdf.contains(
+                        "I - Por diferencias"
+                ),
+                textoPdf
+        );
+
+        assertTrue(
+                textoPdf.contains(
+                        "Correccion de importe"
+                ),
+                textoPdf
+        );
+
+        assertTrue(
+                textoPdf.contains(
+                        "Facturas rectificadas"
+                ),
+                textoPdf
+        );
+
+        assertTrue(
+                textoPdf.contains(
+                        "FAC-7"
+                ),
+                textoPdf
+        );
+
+        assertTrue(
+                textoPdf.contains(
+                        "01/10/2026"
+                ),
+                textoPdf
+        );
+
+        assertFalse(
+                textoPdf.contains(
+                        "Base rectificada"
+                ),
+                textoPdf
+        );
+
+        assertFalse(
+                textoPdf.contains(
+                        "Cuota rectificada"
+                ),
+                textoPdf
+        );
+    }
+
+    @Test
+    void facturaRectificativaPorSustitucionMuestraImportesRectificados()
+            throws Exception {
+
+        when(
+                facturaService.obtener(
+                        1L,
+                        200L
+                )
+        ).thenReturn(
+                respuestaRectificativa(
+                        TipoRectificativa.S
+                )
+        );
+
+        when(
+                facturaRepository.findByIdAndEmpresa_Id(
+                        200L,
+                        1L
+                )
+        ).thenReturn(
+                Optional.of(
+                        facturaPersistida()
+                )
+        );
+
+        when(
+                qrFacturaService.generarPng(
+                        1L,
+                        200L
+                )
+        ).thenReturn(
+                crearPng()
+        );
+
+        byte[] pdf =
+                service.generar(
+                        1L,
+                        200L
+                );
+
+        String textoPdf =
+                extraerTextoPdf(
+                        pdf
+                );
+
+        assertTrue(
+                textoPdf.contains(
+                        "FACTURA RECTIFICATIVA"
+                ),
+                textoPdf
+        );
+
+        assertTrue(
+                textoPdf.contains(
+                        "R1"
+                ),
+                textoPdf
+        );
+
+        assertTrue(
+                textoPdf.contains(
+                        "S - Por sustitucion"
+                ),
+                textoPdf
+        );
+
+        assertTrue(
+                textoPdf.contains(
+                        "Sustitucion de factura"
+                ),
+                textoPdf
+        );
+
+        assertTrue(
+                textoPdf.contains(
+                        "Base rectificada"
+                ),
+                textoPdf
+        );
+
+        assertTrue(
+                textoPdf.contains(
+                        "100.00 EUR"
+                ),
+                textoPdf
+        );
+
+        assertTrue(
+                textoPdf.contains(
+                        "Cuota rectificada"
+                ),
+                textoPdf
+        );
+
+        assertTrue(
+                textoPdf.contains(
+                        "7.00 EUR"
+                ),
+                textoPdf
+        );
+
+        assertTrue(
+                textoPdf.contains(
+                        "FAC-7"
+                ),
+                textoPdf
+        );
+
+        assertTrue(
+                textoPdf.contains(
+                        "01/10/2026"
+                ),
+                textoPdf
+        );
+    }
     @Test
     void borradorNoPuedeGenerarPdfDefinitivo() {
 
@@ -291,6 +518,133 @@ class FacturaPdfServiceTest {
         );
     }
 
+    private FacturaResponse respuestaRectificativa(
+            TipoRectificativa tipoRectificativa) {
+
+        boolean sustitucion =
+                tipoRectificativa
+                        == TipoRectificativa.S;
+
+        FacturaRectificadaResponse original =
+                new FacturaRectificadaResponse(
+                        50L,
+                        30L,
+                        "FAC",
+                        7L,
+                        LocalDate.of(
+                                2026,
+                                10,
+                                1
+                        ),
+                        new BigDecimal("100.00"),
+                        new BigDecimal("7.00"),
+                        new BigDecimal("107.00")
+                );
+
+        return new FacturaResponse(
+                200L,
+                1L,
+                10L,
+                40L,
+                "RECT",
+
+                EstadoFactura.EMITIDA,
+                1L,
+                LocalDate.of(
+                        2026,
+                        10,
+                        6
+                ),
+
+                TipoFactura.R1,
+                tipoRectificativa,
+
+                sustitucion
+                        ? "Sustitucion de factura"
+                        : "Correccion de importe",
+
+                sustitucion
+                        ? new BigDecimal("100.00")
+                        : null,
+
+                sustitucion
+                        ? new BigDecimal("7.00")
+                        : null,
+
+                "Rectificacion de prueba",
+
+                sustitucion
+                        ? new BigDecimal("80.00")
+                        : new BigDecimal("-20.00"),
+
+                sustitucion
+                        ? new BigDecimal("5.60")
+                        : new BigDecimal("-1.40"),
+
+                sustitucion
+                        ? new BigDecimal("85.60")
+                        : new BigDecimal("-21.40"),
+
+                "12345678Z",
+                "Cliente de Prueba",
+                "Calle Cliente 1",
+                "38001",
+                "Santa Cruz de Tenerife",
+                "Santa Cruz de Tenerife",
+                "ES",
+
+                Instant.parse(
+                        "2026-10-06T06:00:00Z"
+                ),
+                Instant.parse(
+                        "2026-10-06T06:01:00Z"
+                ),
+                Instant.parse(
+                        "2026-10-06T06:02:00Z"
+                ),
+
+                null,
+                null,
+
+                List.of(
+                        original
+                ),
+
+                List.of()
+        );
+    }
+
+    private String extraerTextoPdf(
+            byte[] pdf)
+            throws Exception {
+
+        PdfReader reader =
+                new PdfReader(
+                        pdf
+                );
+
+        try {
+
+            PdfTextExtractor extractor =
+                    new PdfTextExtractor(
+                            reader
+                    );
+
+            return extractor
+                    .getTextFromPage(
+                            1
+                    )
+                    .replaceAll(
+                            "\\s+",
+                            " "
+                    )
+                    .trim();
+
+        } finally {
+
+            reader.close();
+        }
+    }
     private byte[] crearPng()
             throws Exception {
 

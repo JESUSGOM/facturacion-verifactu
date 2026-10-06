@@ -145,7 +145,11 @@ public class FacturaPdfService {
             );
 
             documento.addSubject(
-                    "Factura"
+                    esRectificativa(
+                            factura
+                    )
+                            ? "Factura rectificativa"
+                            : "Factura"
             );
 
             documento.open();
@@ -173,6 +177,10 @@ public class FacturaPdfService {
             agregarCabecera(
                     documento,
                     facturaPersistida,
+                    factura
+            );
+            agregarDatosRectificacion(
+                    documento,
                     factura
             );
 
@@ -445,7 +453,11 @@ public class FacturaPdfService {
 
         Paragraph facturaTitulo =
                 new Paragraph(
-                        "FACTURA",
+                        esRectificativa(
+                                factura
+                        )
+                                ? "FACTURA RECTIFICATIVA"
+                                : "FACTURA",
                         titulo
                 );
 
@@ -499,6 +511,278 @@ public class FacturaPdfService {
         );
     }
 
+    private void agregarDatosRectificacion(
+            Document documento,
+            FacturaResponse factura)
+            throws Exception {
+
+        if (!esRectificativa(
+                factura
+        )) {
+            return;
+        }
+
+        Font titulo =
+                new Font(
+                        Font.HELVETICA,
+                        10,
+                        Font.BOLD
+                );
+
+        Font normal =
+                new Font(
+                        Font.HELVETICA,
+                        9,
+                        Font.NORMAL
+                );
+
+        PdfPTable tabla =
+                new PdfPTable(
+                        new float[]{
+                                30,
+                                70
+                        }
+                );
+
+        tabla.setWidthPercentage(
+                100
+        );
+
+        tabla.setSpacingAfter(
+                mm(6)
+        );
+
+        agregarCelda(
+                tabla,
+                "RECTIFICACION",
+                titulo,
+                Element.ALIGN_LEFT
+        );
+
+        agregarCelda(
+                tabla,
+                "",
+                titulo,
+                Element.ALIGN_LEFT
+        );
+
+        agregarCelda(
+                tabla,
+                "Tipo fiscal",
+                titulo,
+                Element.ALIGN_LEFT
+        );
+
+        agregarCelda(
+                tabla,
+                factura.tipoFactura().name(),
+                normal,
+                Element.ALIGN_LEFT
+        );
+
+        agregarCelda(
+                tabla,
+                "Modalidad",
+                titulo,
+                Element.ALIGN_LEFT
+        );
+
+        agregarCelda(
+                tabla,
+                descripcionTipoRectificativa(
+                        factura.tipoRectificativa()
+                ),
+                normal,
+                Element.ALIGN_LEFT
+        );
+
+        agregarCelda(
+                tabla,
+                "Motivo",
+                titulo,
+                Element.ALIGN_LEFT
+        );
+
+        agregarCelda(
+                tabla,
+                valor(
+                        factura.motivoRectificacion()
+                ),
+                normal,
+                Element.ALIGN_LEFT
+        );
+
+        if (factura.tipoRectificativa()
+                == TipoRectificativa.S) {
+
+            agregarCelda(
+                    tabla,
+                    "Base rectificada",
+                    titulo,
+                    Element.ALIGN_LEFT
+            );
+
+            agregarCelda(
+                    tabla,
+                    importe(
+                            factura.baseRectificada()
+                    ),
+                    normal,
+                    Element.ALIGN_LEFT
+            );
+
+            agregarCelda(
+                    tabla,
+                    "Cuota rectificada",
+                    titulo,
+                    Element.ALIGN_LEFT
+            );
+
+            agregarCelda(
+                    tabla,
+                    importe(
+                            factura.cuotaRectificada()
+                    ),
+                    normal,
+                    Element.ALIGN_LEFT
+            );
+        }
+
+        documento.add(
+                tabla
+        );
+
+        agregarFacturasRectificadas(
+                documento,
+                factura,
+                titulo,
+                normal
+        );
+    }
+
+    private void agregarFacturasRectificadas(
+            Document documento,
+            FacturaResponse factura,
+            Font titulo,
+            Font normal)
+            throws Exception {
+
+        if (factura.facturasRectificadas() == null
+                || factura.facturasRectificadas().isEmpty()) {
+
+            return;
+        }
+
+        Paragraph encabezado =
+                new Paragraph(
+                        "Facturas rectificadas:",
+                        titulo
+                );
+
+        encabezado.setSpacingAfter(
+                mm(1)
+        );
+
+        documento.add(
+                encabezado
+        );
+
+        for (FacturaRectificadaResponse original
+                : factura.facturasRectificadas()) {
+
+            if (original == null) {
+                continue;
+            }
+
+            String numeroFactura =
+                    valor(
+                            original.serieCodigo()
+                    )
+                            + "-"
+                            + original.numero();
+
+            String fecha =
+                    original.fechaExpedicion() == null
+                            ? ""
+                            : FORMATO_FECHA.format(
+                                    original.fechaExpedicion()
+                            );
+
+            StringBuilder texto =
+                    new StringBuilder();
+
+            texto.append(
+                    numeroFactura
+            );
+
+            if (!fecha.isBlank()) {
+
+                texto.append(
+                        " | Fecha: "
+                );
+
+                texto.append(
+                        fecha
+                );
+            }
+
+            if (original.total() != null) {
+
+                texto.append(
+                        " | Total original: "
+                );
+
+                texto.append(
+                        importe(
+                                original.total()
+                        )
+                );
+            }
+
+            Paragraph linea =
+                    new Paragraph(
+                            texto.toString(),
+                            normal
+                    );
+
+            linea.setSpacingAfter(
+                    mm(1)
+            );
+
+            documento.add(
+                    linea
+            );
+        }
+
+        documento.add(
+                new Paragraph(
+                        " ",
+                        normal
+                )
+        );
+    }
+
+    private String descripcionTipoRectificativa(
+            TipoRectificativa tipo) {
+
+        if (tipo == null) {
+            return "";
+        }
+
+        return switch (tipo) {
+            case I -> "I - Por diferencias";
+            case S -> "S - Por sustitucion";
+        };
+    }
+
+    private boolean esRectificativa(
+            FacturaResponse factura) {
+
+        return factura != null
+                && factura.tipoFactura() != null
+                && factura.tipoFactura()
+                .esRectificativa();
+    }
     private void agregarDatosFiscales(
             Document documento,
             Factura facturaPersistida,
