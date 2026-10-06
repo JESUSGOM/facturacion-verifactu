@@ -51,6 +51,18 @@ public class FacturaController {
                 request
         );
     }
+    @PutMapping("/rectificativas/{facturaId}")
+    public FacturaResponse modificarRectificativa(
+            @PathVariable Long empresaId,
+            @PathVariable Long facturaId,
+            @Valid @RequestBody FacturaRectificativaRequest request) {
+
+        return facturaService.modificarBorradorRectificativo(
+                empresaId,
+                facturaId,
+                request
+        );
+    }
     @GetMapping
     public List<FacturaResponse> listar(
             @PathVariable Long empresaId) {

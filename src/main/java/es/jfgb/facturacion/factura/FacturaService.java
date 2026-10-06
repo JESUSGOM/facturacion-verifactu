@@ -137,6 +137,26 @@ public class FacturaService {
             Long empresaId,
             FacturaRectificativaRequest request) {
 
+        Factura factura =
+                construirBorradorRectificativo(
+                        empresaId,
+                        request
+                );
+
+        Factura guardada =
+                facturaRepository.saveAndFlush(
+                        factura
+                );
+
+        return convertir(
+                guardada
+        );
+    }
+
+    private Factura construirBorradorRectificativo(
+            Long empresaId,
+            FacturaRectificativaRequest request) {
+
         if (request == null) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -727,6 +747,122 @@ public class FacturaService {
                 )
         );
 
+        return factura;
+    }
+
+    @Transactional
+    public FacturaResponse modificarBorradorRectificativo(
+            Long empresaId,
+            Long facturaId,
+            FacturaRectificativaRequest request) {
+
+        Factura factura =
+                obtenerFacturaConBloqueo(
+                        empresaId,
+                        facturaId
+                );
+
+        comprobarBorrador(
+                factura,
+                "Solo se puede modificar una factura rectificativa "
+                        + "en estado BORRADOR"
+        );
+
+        if (factura.getTipoFactura() == null
+                || !factura.getTipoFactura().esRectificativa()) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "La factura indicada no es rectificativa"
+            );
+        }
+
+        /*
+         * Construimos primero una propuesta completa y validada.
+         * Si alguna validacion falla, el borrador existente
+         * permanece sin cambios.
+         */
+        Factura propuesta =
+                construirBorradorRectificativo(
+                        empresaId,
+                        request
+                );
+
+        /*
+         * Eliminamos primero las relaciones actuales.
+         * orphanRemoval se encarga de borrar los registros
+         * anteriores antes de reconstruir el borrador.
+         */
+        factura.getLineas().clear();
+        factura.limpiarFacturasRectificadas();
+
+        facturaRepository.flush();
+
+        factura.setCliente(
+                propuesta.getCliente()
+        );
+
+        factura.setSerie(
+                propuesta.getSerie()
+        );
+
+        factura.setTipoFactura(
+                propuesta.getTipoFactura()
+        );
+
+        factura.setTipoRectificativa(
+                propuesta.getTipoRectificativa()
+        );
+
+        factura.setMotivoRectificacion(
+                propuesta.getMotivoRectificacion()
+        );
+
+        factura.setBaseRectificada(
+                propuesta.getBaseRectificada()
+        );
+
+        factura.setCuotaRectificada(
+                propuesta.getCuotaRectificada()
+        );
+
+        factura.setObservaciones(
+                propuesta.getObservaciones()
+        );
+
+        copiarDatosClienteDesdeFactura(
+                factura,
+                propuesta
+        );
+
+        for (FacturaRectificada relacion
+                : propuesta.getFacturasRectificadas()) {
+
+            factura.agregarFacturaRectificada(
+                    relacion
+            );
+        }
+
+        for (FacturaLinea linea
+                : propuesta.getLineas()) {
+
+            factura.agregarLinea(
+                    linea
+            );
+        }
+
+        factura.setBaseImponible(
+                propuesta.getBaseImponible()
+        );
+
+        factura.setCuotaImpuesto(
+                propuesta.getCuotaImpuesto()
+        );
+
+        factura.setTotal(
+                propuesta.getTotal()
+        );
+
         Factura guardada =
                 facturaRepository.saveAndFlush(
                         factura
@@ -736,6 +872,7 @@ public class FacturaService {
                 guardada
         );
     }
+
     @Transactional
     public FacturaResponse modificarBorrador(
             Long empresaId,

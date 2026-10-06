@@ -463,6 +463,188 @@ class FacturaRectificativaServiceTest {
         );
     }
 
+    @Test
+    void modificarRectificativaEnBorradorReconstruyeDatos() {
+
+        prepararEmpresaYSerieRectificativa();
+        prepararDatosParaConvertir();
+
+        Factura original =
+                facturaOriginal(
+                        "100.00",
+                        "7.00"
+                );
+
+        Factura borrador =
+                new Factura();
+
+        borrador.setEmpresa(
+                empresa
+        );
+
+        borrador.setCliente(
+                cliente
+        );
+
+        borrador.setSerie(
+                serie
+        );
+
+        borrador.setEstado(
+                EstadoFactura.BORRADOR
+        );
+
+        borrador.setTipoFactura(
+                TipoFactura.R1
+        );
+
+        borrador.setTipoRectificativa(
+                TipoRectificativa.I
+        );
+
+        FacturaLinea lineaAnterior =
+                new FacturaLinea();
+
+        lineaAnterior.setDescripcion(
+                "Linea anterior"
+        );
+
+        borrador.agregarLinea(
+                lineaAnterior
+        );
+
+        FacturaRectificada relacionAnterior =
+                new FacturaRectificada();
+
+        relacionAnterior.setFacturaRectificada(
+                original
+        );
+
+        relacionAnterior.setOrden(
+                1
+        );
+
+        borrador.agregarFacturaRectificada(
+                relacionAnterior
+        );
+
+        when(
+                facturaRepository.findConBloqueo(
+                        1L,
+                        200L
+                )
+        ).thenReturn(
+                Optional.of(borrador)
+        );
+
+        when(
+                facturaRepository.findByIdAndEmpresa_Id(
+                        100L,
+                        1L
+                )
+        ).thenReturn(
+                Optional.of(original)
+        );
+
+        when(
+                facturaRepository.saveAndFlush(
+                        borrador
+                )
+        ).thenReturn(
+                borrador
+        );
+
+        FacturaRectificativaRequest request =
+                requestMinimo(
+                        TipoRectificativa.S,
+                        1
+                );
+
+        FacturaResponse response =
+                service.modificarBorradorRectificativo(
+                        1L,
+                        200L,
+                        request
+                );
+
+        assertEquals(
+                TipoRectificativa.S,
+                borrador.getTipoRectificativa()
+        );
+
+        assertEquals(
+                "Correccion",
+                borrador.getMotivoRectificacion()
+        );
+
+        assertEquals(
+                new BigDecimal("100.00"),
+                borrador.getBaseRectificada()
+        );
+
+        assertEquals(
+                new BigDecimal("7.00"),
+                borrador.getCuotaRectificada()
+        );
+
+        assertEquals(
+                new BigDecimal("107.00"),
+                borrador.getTotal()
+        );
+
+        assertEquals(
+                1,
+                borrador.getLineas().size()
+        );
+
+        assertEquals(
+                "Linea corregida",
+                borrador
+                        .getLineas()
+                        .getFirst()
+                        .getDescripcion()
+        );
+
+        assertEquals(
+                1,
+                borrador.getFacturasRectificadas().size()
+        );
+
+        assertSame(
+                original,
+                borrador
+                        .getFacturasRectificadas()
+                        .getFirst()
+                        .getFacturaRectificada()
+        );
+
+        assertEquals(
+                TipoRectificativa.S,
+                response.tipoRectificativa()
+        );
+
+        assertEquals(
+                new BigDecimal("107.00"),
+                response.total()
+        );
+
+        verify(
+                facturaRepository
+        ).flush();
+
+        verify(
+                facturaRepository
+        ).saveAndFlush(
+                borrador
+        );
+
+        verify(
+                registroFacturacionService,
+                never()
+        ).crearAlta(
+                any()
+        );
+    }
     private void prepararEmpresaYSerieRectificativa() {
 
         when(
