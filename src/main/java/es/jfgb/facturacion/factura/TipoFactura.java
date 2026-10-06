@@ -3,6 +3,7 @@ package es.jfgb.facturacion.factura;
 public enum TipoFactura {
 
     F1,
+    F2,
 
     R1,
     R2,

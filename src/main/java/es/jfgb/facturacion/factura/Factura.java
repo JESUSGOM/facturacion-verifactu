@@ -31,8 +31,8 @@ public class Factura {
     @JoinColumn(name = "empresa_id", nullable = false)
     private Empresa empresa;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "cliente_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "cliente_id", nullable = true)
     private Cliente cliente;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
