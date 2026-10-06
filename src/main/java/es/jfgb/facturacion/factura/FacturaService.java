@@ -885,25 +885,6 @@ public class FacturaService {
                 factura,
                 "Solo se puede emitir una factura en estado BORRADOR"
         );
-
-        /*
-         * Proteccion temporal.
-         *
-         * RegistroFacturacionService todavia genera el ALTA
-         * VERI*FACTU como F1. Hasta adaptar ese circuito no
-         * permitimos emitir una R1-R5.
-         */
-        if (factura.getTipoFactura() != null
-                && factura.getTipoFactura().esRectificativa()) {
-
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "La emision de facturas rectificativas permanece "
-                            + "bloqueada hasta completar su integracion "
-                            + "VERI*FACTU"
-            );
-        }
-
         if (factura.getEmpresa() == null
                 || !factura.getEmpresa().isActiva()) {
 

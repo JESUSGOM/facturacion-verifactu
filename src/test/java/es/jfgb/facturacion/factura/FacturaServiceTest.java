@@ -792,6 +792,279 @@ class FacturaServiceTest {
     }
 
     @Test
+    void emitirRectificativaNumeraYCreaRegistroVerifactuLocal() {
+
+        Empresa empresa =
+                org.mockito.Mockito.mock(
+                        Empresa.class
+                );
+
+        Cliente cliente =
+                org.mockito.Mockito.mock(
+                        Cliente.class
+                );
+
+        SerieFacturacion serie =
+                org.mockito.Mockito.mock(
+                        SerieFacturacion.class
+                );
+
+        Producto producto =
+                org.mockito.Mockito.mock(
+                        Producto.class
+                );
+
+        when(
+                empresa.getId()
+        ).thenReturn(
+                1L
+        );
+
+        when(
+                empresa.isActiva()
+        ).thenReturn(
+                true
+        );
+
+        when(
+                cliente.getId()
+        ).thenReturn(
+                10L
+        );
+
+        when(
+                cliente.isActivo()
+        ).thenReturn(
+                true
+        );
+
+        when(
+                serie.getId()
+        ).thenReturn(
+                20L
+        );
+
+        when(
+                serie.getCodigo()
+        ).thenReturn(
+                "RECT"
+        );
+
+        when(
+                serie.isActiva()
+        ).thenReturn(
+                true
+        );
+
+        when(
+                serie.getUltimoNumero()
+        ).thenReturn(
+                3L
+        );
+
+        when(
+                producto.getId()
+        ).thenReturn(
+                30L
+        );
+
+        when(
+                producto.isActivo()
+        ).thenReturn(
+                true
+        );
+
+        Factura factura =
+                new Factura();
+
+        factura.setEmpresa(
+                empresa
+        );
+
+        factura.setCliente(
+                cliente
+        );
+
+        factura.setSerie(
+                serie
+        );
+
+        factura.setEstado(
+                EstadoFactura.BORRADOR
+        );
+
+        factura.setTipoFactura(
+                TipoFactura.R1
+        );
+
+        factura.setTipoRectificativa(
+                TipoRectificativa.I
+        );
+
+        factura.setClienteNombre(
+                "Cliente"
+        );
+
+        factura.setClienteNif(
+                "11111111H"
+        );
+
+        factura.setClienteCodigoPais(
+                "ES"
+        );
+
+        FacturaLinea linea =
+                new FacturaLinea();
+
+        linea.setProducto(
+                producto
+        );
+
+        linea.setDescripcion(
+                "Rectificacion"
+        );
+
+        linea.setCantidad(
+                new BigDecimal("1.0000")
+        );
+
+        linea.setPrecioUnitario(
+                new BigDecimal("10.0000")
+        );
+
+        linea.setTipoImpuesto(
+                TipoImpuesto.IGIC
+        );
+
+        linea.setPorcentajeImpuesto(
+                new BigDecimal("7.00")
+        );
+
+        linea.setBaseImponible(
+                new BigDecimal("-10.00")
+        );
+
+        linea.setCuotaImpuesto(
+                new BigDecimal("-0.70")
+        );
+
+        linea.setTotal(
+                new BigDecimal("-10.70")
+        );
+
+        linea.setOrden(
+                1
+        );
+
+        factura.agregarLinea(
+                linea
+        );
+
+        factura.setBaseImponible(
+                new BigDecimal("-10.00")
+        );
+
+        factura.setCuotaImpuesto(
+                new BigDecimal("-0.70")
+        );
+
+        factura.setTotal(
+                new BigDecimal("-10.70")
+        );
+
+        when(
+                facturaRepository.findConBloqueo(
+                        1L,
+                        200L
+                )
+        ).thenReturn(
+                Optional.of(
+                        factura
+                )
+        );
+
+        when(
+                serieRepository.findConBloqueo(
+                        20L,
+                        1L
+                )
+        ).thenReturn(
+                Optional.of(
+                        serie
+                )
+        );
+
+        when(
+                facturaRepository.saveAndFlush(
+                        factura
+                )
+        ).thenReturn(
+                factura
+        );
+
+        FacturaResponse response =
+                service.emitir(
+                        1L,
+                        200L
+                );
+
+        assertEquals(
+                EstadoFactura.EMITIDA,
+                factura.getEstado()
+        );
+
+        assertEquals(
+                4L,
+                factura.getNumero()
+        );
+
+        assertNotNull(
+                factura.getFechaExpedicion()
+        );
+
+        assertNotNull(
+                factura.getFechaEmision()
+        );
+
+        assertEquals(
+                TipoFactura.R1,
+                response.tipoFactura()
+        );
+
+        assertEquals(
+                TipoRectificativa.I,
+                response.tipoRectificativa()
+        );
+
+        assertEquals(
+                EstadoFactura.EMITIDA,
+                response.estado()
+        );
+
+        assertEquals(
+                4L,
+                response.numero()
+        );
+
+        verify(
+                serie
+        ).setUltimoNumero(
+                4L
+        );
+
+        verify(
+                serieRepository
+        ).save(
+                serie
+        );
+
+        verify(
+                registroFacturacionService
+        ).crearAlta(
+                factura
+        );
+    }
+    @Test
     void emitirRechazaProductoDesactivadoAntesDeNumerar() {
 
         Empresa empresa =

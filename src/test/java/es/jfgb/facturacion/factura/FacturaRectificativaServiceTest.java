@@ -463,59 +463,6 @@ class FacturaRectificativaServiceTest {
         );
     }
 
-    @Test
-    void emitirRectificativaPermaneceBloqueadoAntesDeVerifactu() {
-
-        Factura factura =
-                new Factura();
-
-        factura.setEstado(
-                EstadoFactura.BORRADOR
-        );
-
-        factura.setTipoFactura(
-                TipoFactura.R1
-        );
-
-        when(
-                facturaRepository.findConBloqueo(
-                        1L,
-                        200L
-                )
-        ).thenReturn(
-                Optional.of(factura)
-        );
-
-        ResponseStatusException ex =
-                assertThrows(
-                        ResponseStatusException.class,
-                        () -> service.emitir(
-                                1L,
-                                200L
-                        )
-                );
-
-        assertEquals(
-                HttpStatus.CONFLICT,
-                ex.getStatusCode()
-        );
-
-        verify(
-                registroFacturacionService,
-                never()
-        ).crearAlta(
-                any()
-        );
-
-        verify(
-                serieRepository,
-                never()
-        ).findConBloqueo(
-                any(),
-                any()
-        );
-    }
-
     private void prepararEmpresaYSerieRectificativa() {
 
         when(
