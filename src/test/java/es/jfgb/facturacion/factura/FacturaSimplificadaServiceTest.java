@@ -19,6 +19,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
+import java.time.LocalDate;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -522,6 +523,171 @@ class FacturaSimplificadaServiceTest {
 
         verifyNoInteractions(
                 productoRepository
+        );
+    }
+
+    @Test
+    void emitirSimplificadaSinClienteNumeraYCreaRegistroLocal() {
+
+        Factura factura = new Factura();
+
+        factura.setEmpresa(empresa);
+        factura.setSerie(serie);
+        factura.setCliente(null);
+        factura.setTipoFactura(TipoFactura.F2);
+        factura.setEstado(EstadoFactura.BORRADOR);
+
+        factura.setBaseImponible(
+                new BigDecimal("12.50")
+        );
+
+        factura.setCuotaImpuesto(
+                new BigDecimal("0.88")
+        );
+
+        factura.setTotal(
+                new BigDecimal("13.38")
+        );
+
+        FacturaLinea linea = new FacturaLinea();
+
+        linea.setProducto(producto);
+        linea.setDescripcion("Material de oficina");
+        linea.setCantidad(BigDecimal.ONE);
+
+        linea.setPrecioUnitario(
+                new BigDecimal("12.5000")
+        );
+
+        linea.setSigno(1);
+        linea.setTipoImpuesto(TipoImpuesto.IGIC);
+
+        linea.setPorcentajeImpuesto(
+                new BigDecimal("7.00")
+        );
+
+        linea.setBaseImponible(
+                new BigDecimal("12.50")
+        );
+
+        linea.setCuotaImpuesto(
+                new BigDecimal("0.88")
+        );
+
+        linea.setTotal(
+                new BigDecimal("13.38")
+        );
+
+        linea.setOrden(1);
+
+        factura.agregarLinea(linea);
+
+        when(empresa.getId())
+                .thenReturn(1L);
+
+        when(empresa.isActiva())
+                .thenReturn(true);
+
+        when(serie.getId())
+                .thenReturn(17L);
+
+        when(serie.getCodigo())
+                .thenReturn("SIM");
+
+        when(serie.isActiva())
+                .thenReturn(true);
+
+        when(serie.getTipoSerie())
+                .thenReturn(
+                        TipoSerieFacturacion.SIMPLIFICADA
+                );
+
+        when(serie.getUltimoNumero())
+                .thenReturn(0L);
+
+        when(producto.getId())
+                .thenReturn(2L);
+
+        when(producto.isActivo())
+                .thenReturn(true);
+
+        when(
+                facturaRepository.findConBloqueo(
+                        1L,
+                        36L
+                )
+        ).thenReturn(
+                Optional.of(factura)
+        );
+
+        when(
+                serieRepository.findConBloqueo(
+                        17L,
+                        1L
+                )
+        ).thenReturn(
+                Optional.of(serie)
+        );
+
+        when(
+                facturaRepository.saveAndFlush(
+                        factura
+                )
+        ).thenReturn(
+                factura
+        );
+
+        FacturaResponse response =
+                service.emitir(
+                        1L,
+                        36L
+                );
+
+        assertEquals(
+                EstadoFactura.EMITIDA,
+                factura.getEstado()
+        );
+
+        assertEquals(
+                1L,
+                factura.getNumero()
+        );
+
+        assertEquals(
+                LocalDate.now(),
+                factura.getFechaExpedicion()
+        );
+
+        assertEquals(
+                TipoFactura.F2,
+                response.tipoFactura()
+        );
+
+        assertNull(
+                response.clienteId()
+        );
+
+        assertEquals(
+                "SIM",
+                response.serieCodigo()
+        );
+
+        assertEquals(
+                new BigDecimal("13.38"),
+                response.total()
+        );
+
+        verify(serie)
+                .setUltimoNumero(1L);
+
+        verify(serieRepository)
+                .save(serie);
+
+        verify(registroFacturacionService)
+                .crearAlta(factura);
+
+        verifyNoInteractions(
+                clienteRepository
         );
     }
 

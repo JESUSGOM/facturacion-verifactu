@@ -6,6 +6,7 @@ import es.jfgb.facturacion.factura.Factura;
 import es.jfgb.facturacion.factura.EstadoFactura;
 import es.jfgb.facturacion.factura.FacturaLinea;
 import es.jfgb.facturacion.factura.FacturaRectificada;
+import es.jfgb.facturacion.factura.TipoFactura;
 import es.jfgb.facturacion.factura.TipoRectificativa;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -112,43 +113,49 @@ public class RegistroFacturacionService {
                         120
                 );
 
-        String destinatarioNombre =
-                obligatorio(
-                        factura.getClienteNombre(),
-                        "Nombre o razón social "
-                                + "del destinatario",
-                        120
+        String destinatarioNombre = null;
+        String destinatarioPais = null;
+        String destinatarioNif = null;
+
+        if (factura.getTipoFactura() != TipoFactura.F2) {
+
+            destinatarioNombre =
+                    obligatorio(
+                            factura.getClienteNombre(),
+                            "Nombre o razón social del destinatario",
+                            120
+                    );
+
+            destinatarioPais =
+                    obligatorio(
+                            factura.getClienteCodigoPais(),
+                            "Código de país del destinatario",
+                            2
+                    ).toUpperCase();
+
+            /*
+             * Primera versión:
+             * destinatario identificado mediante
+             * NIF español.
+             */
+            if (!"ES".equals(destinatarioPais)) {
+
+                throw error(
+                        "La integración VERI*FACTU actual "
+                                + "todavía no admite "
+                                + "destinatarios extranjeros. "
+                                + "País recibido: "
+                                + destinatarioPais
                 );
+            }
 
-        String destinatarioPais =
-                obligatorio(
-                        factura.getClienteCodigoPais(),
-                        "Código de país "
-                                + "del destinatario",
-                        2
-                ).toUpperCase();
-
-        /*
-         * Primera versión:
-         * destinatario identificado mediante
-         * NIF español.
-         */
-        if (!"ES".equals(destinatarioPais)) {
-            throw error(
-                    "La integración VERI*FACTU actual "
-                            + "todavía no admite "
-                            + "destinatarios extranjeros. "
-                            + "País recibido: "
-                            + destinatarioPais
-            );
+            destinatarioNif =
+                    obligatorio(
+                            factura.getClienteNif(),
+                            "NIF del destinatario",
+                            20
+                    );
         }
-
-        String destinatarioNif =
-                obligatorio(
-                        factura.getClienteNif(),
-                        "NIF del destinatario",
-                        20
-                );
 
         String descripcionOperacion =
                 construirDescripcionOperacion(

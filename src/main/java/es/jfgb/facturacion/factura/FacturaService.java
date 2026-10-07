@@ -1184,12 +1184,22 @@ public class FacturaService {
          * entretanto el cliente o un producto ha quedado
          * desactivado.
          */
-        if (factura.getCliente() == null
+        if (factura.getTipoFactura() == TipoFactura.F2) {
+
+            if (factura.getCliente() != null) {
+
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "La factura F2 sin destinatario no debe tener cliente"
+                );
+            }
+
+        } else if (factura.getCliente() == null
                 || !factura.getCliente().isActivo()) {
 
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "El cliente de la factura no estÃ¡ activo"
+                    "El cliente de la factura no esta activo"
             );
         }
 
@@ -1226,6 +1236,16 @@ public class FacturaService {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "La serie de facturaciÃ³n no estÃ¡ activa"
+            );
+        }
+
+        if (factura.getTipoFactura() == TipoFactura.F2
+                && serie.getTipoSerie()
+                != TipoSerieFacturacion.SIMPLIFICADA) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Una factura F2 debe utilizar una serie simplificada"
             );
         }
 
