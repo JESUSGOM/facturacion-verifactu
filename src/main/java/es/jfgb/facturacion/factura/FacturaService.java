@@ -85,6 +85,10 @@ public class FacturaService {
                         request.serieId()
                 );
 
+        comprobarSerieOrdinaria(
+                serie
+        );
+
         Factura factura =
                 new Factura();
 
@@ -126,6 +130,109 @@ public class FacturaService {
         );
     }
 
+    /**
+     * Crea una factura simplificada F2 en estado BORRADOR.
+     *
+     * No existe destinatario identificado.
+     *
+     * En esta fase no se crea ningun registro VERI*FACTU
+     * y no se realiza ningun envio a AEAT.
+     */
+    @Transactional
+    public FacturaResponse crearBorradorSimplificado(
+            Long empresaId,
+            FacturaSimplificadaRequest request) {
+
+        if (request == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Debe indicar los datos de la factura simplificada"
+            );
+        }
+
+        Empresa empresa =
+                empresaRepository
+                        .findById(
+                                empresaId
+                        )
+                        .orElseThrow(() ->
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
+                                        "Empresa no encontrada"
+                                ));
+
+        if (!empresa.isActiva()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "La empresa no esta activa"
+            );
+        }
+
+        SerieFacturacion serie =
+                obtenerSerieActiva(
+                        empresaId,
+                        request.serieId()
+                );
+
+        if (serie.getTipoSerie()
+                != TipoSerieFacturacion.SIMPLIFICADA) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "La serie seleccionada no es una serie simplificada"
+            );
+        }
+
+        Factura factura =
+                new Factura();
+
+        factura.setEmpresa(
+                empresa
+        );
+
+        factura.setCliente(
+                null
+        );
+
+        factura.setSerie(
+                serie
+        );
+
+        factura.setTipoFactura(
+                TipoFactura.F2
+        );
+
+        factura.setEstado(
+                EstadoFactura.BORRADOR
+        );
+
+        factura.setNumero(
+                null
+        );
+
+        factura.setFechaExpedicion(
+                null
+        );
+
+        factura.setFechaEmision(
+                null
+        );
+
+        aplicarBorradorSimplificado(
+                factura,
+                empresaId,
+                request
+        );
+
+        Factura guardada =
+                facturaRepository.saveAndFlush(
+                        factura
+                );
+
+        return convertir(
+                guardada
+        );
+    }
     /**
      * Crea una factura rectificativa en estado BORRADOR.
      *
@@ -890,6 +997,14 @@ public class FacturaService {
                 "Solo se puede modificar una factura en estado BORRADOR"
         );
 
+        if (factura.getTipoFactura() == TipoFactura.F2) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Una factura simplificada debe modificarse "
+                            + "mediante su circuito especifico"
+            );
+        }
         if (factura.getTipoFactura() != null
                 && factura.getTipoFactura().esRectificativa()) {
 
@@ -911,6 +1026,10 @@ public class FacturaService {
                         empresaId,
                         request.serieId()
                 );
+
+        comprobarSerieOrdinaria(
+                serie
+        );
 
         /*
          * Las lÃ­neas emitidas nunca pasan por aquÃ­.
@@ -1334,6 +1453,202 @@ public class FacturaService {
         );
     }
 
+    private void aplicarBorradorSimplificado(
+            Factura factura,
+            Long empresaId,
+            FacturaSimplificadaRequest request) {
+
+        if (request.observaciones() == null
+                || request.observaciones().isBlank()) {
+
+            factura.setObservaciones(
+                    null
+            );
+
+        } else {
+
+            factura.setObservaciones(
+                    request.observaciones().trim()
+            );
+        }
+
+        /*
+         * F2 sin destinatario identificado.
+         * El snapshot del cliente debe permanecer vacio.
+         */
+        factura.setClienteNif(
+                null
+        );
+
+        factura.setClienteNombre(
+                null
+        );
+
+        factura.setClienteDireccion(
+                null
+        );
+
+        factura.setClienteCodigoPostal(
+                null
+        );
+
+        factura.setClienteMunicipio(
+                null
+        );
+
+        factura.setClienteProvincia(
+                null
+        );
+
+        factura.setClienteCodigoPais(
+                null
+        );
+
+        BigDecimal baseTotal =
+                BigDecimal.ZERO;
+
+        BigDecimal cuotaTotal =
+                BigDecimal.ZERO;
+
+        BigDecimal totalFactura =
+                BigDecimal.ZERO;
+
+        int orden = 1;
+
+        for (FacturaLineaRequest lineaRequest
+                : request.lineas()) {
+
+            Producto producto =
+                    obtenerProductoActivo(
+                            empresaId,
+                            lineaRequest.productoId()
+                    );
+
+            BigDecimal cantidad =
+                    lineaRequest.cantidad();
+
+            BigDecimal precioUnitario =
+                    producto.getPrecio();
+
+            BigDecimal base =
+                    cantidad
+                            .multiply(
+                                    precioUnitario
+                            )
+                            .setScale(
+                                    2,
+                                    RoundingMode.HALF_UP
+                            );
+
+            BigDecimal cuota =
+                    base
+                            .multiply(
+                                    producto.getPorcentajeImpuesto()
+                            )
+                            .divide(
+                                    new BigDecimal("100"),
+                                    2,
+                                    RoundingMode.HALF_UP
+                            );
+
+            BigDecimal totalLinea =
+                    base
+                            .add(
+                                    cuota
+                            )
+                            .setScale(
+                                    2,
+                                    RoundingMode.HALF_UP
+                            );
+
+            FacturaLinea linea =
+                    new FacturaLinea();
+
+            linea.setProducto(
+                    producto
+            );
+
+            linea.setDescripcion(
+                    producto.getNombre()
+            );
+
+            linea.setCantidad(
+                    cantidad
+            );
+
+            linea.setPrecioUnitario(
+                    precioUnitario
+            );
+
+            linea.setSigno(
+                    1
+            );
+
+            linea.setTipoImpuesto(
+                    producto.getTipoImpuesto()
+            );
+
+            linea.setPorcentajeImpuesto(
+                    producto.getPorcentajeImpuesto()
+            );
+
+            linea.setBaseImponible(
+                    base
+            );
+
+            linea.setCuotaImpuesto(
+                    cuota
+            );
+
+            linea.setTotal(
+                    totalLinea
+            );
+
+            linea.setOrden(
+                    orden++
+            );
+
+            factura.agregarLinea(
+                    linea
+            );
+
+            baseTotal =
+                    baseTotal.add(
+                            base
+                    );
+
+            cuotaTotal =
+                    cuotaTotal.add(
+                            cuota
+                    );
+
+            totalFactura =
+                    totalFactura.add(
+                            totalLinea
+                    );
+        }
+
+        factura.setBaseImponible(
+                baseTotal.setScale(
+                        2,
+                        RoundingMode.HALF_UP
+                )
+        );
+
+        factura.setCuotaImpuesto(
+                cuotaTotal.setScale(
+                        2,
+                        RoundingMode.HALF_UP
+                )
+        );
+
+        factura.setTotal(
+                totalFactura.setScale(
+                        2,
+                        RoundingMode.HALF_UP
+                )
+        );
+    }
     private void aplicarBorrador(
             Factura factura,
             Long empresaId,
@@ -1563,6 +1878,18 @@ public class FacturaService {
         return cliente;
     }
 
+    private void comprobarSerieOrdinaria(
+            SerieFacturacion serie) {
+
+        if (serie.getTipoSerie()
+                != TipoSerieFacturacion.ORDINARIA) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "La serie seleccionada no es una serie ordinaria"
+            );
+        }
+    }
     private SerieFacturacion obtenerSerieActiva(
             Long empresaId,
             Long serieId) {
@@ -1735,7 +2062,9 @@ public class FacturaService {
         return new FacturaResponse(
                 factura.getId(),
                 factura.getEmpresa().getId(),
-                factura.getCliente().getId(),
+                factura.getCliente() != null
+                        ? factura.getCliente().getId()
+                        : null,
                 factura.getSerie().getId(),
                 factura.getSerie().getCodigo(),
 
