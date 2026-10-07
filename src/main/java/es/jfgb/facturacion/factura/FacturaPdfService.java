@@ -451,13 +451,31 @@ public class FacturaPdfService {
                 Element.ALIGN_RIGHT
         );
 
+        String textoTitulo;
+
+        if (esRectificativa(
+                factura
+        )) {
+
+            textoTitulo =
+                    "FACTURA RECTIFICATIVA";
+
+        } else if (esSimplificada(
+                factura
+        )) {
+
+            textoTitulo =
+                    "FACTURA SIMPLIFICADA";
+
+        } else {
+
+            textoTitulo =
+                    "FACTURA";
+        }
+
         Paragraph facturaTitulo =
                 new Paragraph(
-                        esRectificativa(
-                                factura
-                        )
-                                ? "FACTURA RECTIFICATIVA"
-                                : "FACTURA",
+                        textoTitulo,
                         titulo
                 );
 
@@ -489,8 +507,8 @@ public class FacturaPdfService {
                 new Paragraph(
                         "Fecha: "
                                 + FORMATO_FECHA.format(
-                                        factura.fechaExpedicion()
-                                ),
+                                factura.fechaExpedicion()
+                        ),
                         normal
                 );
 
@@ -705,8 +723,8 @@ public class FacturaPdfService {
                     original.fechaExpedicion() == null
                             ? ""
                             : FORMATO_FECHA.format(
-                                    original.fechaExpedicion()
-                            );
+                            original.fechaExpedicion()
+                    );
 
             StringBuilder texto =
                     new StringBuilder();
@@ -783,15 +801,33 @@ public class FacturaPdfService {
                 && factura.tipoFactura()
                 .esRectificativa();
     }
+
+    private boolean esSimplificada(
+            FacturaResponse factura) {
+
+        return factura != null
+                && factura.tipoFactura()
+                == TipoFactura.F2;
+    }
+
     private void agregarDatosFiscales(
             Document documento,
             Factura facturaPersistida,
             FacturaResponse factura)
             throws Exception {
 
+        boolean simplificada =
+                esSimplificada(
+                        factura
+                );
+
         PdfPTable tabla =
                 new PdfPTable(
-                        new float[]{
+                        simplificada
+                                ? new float[]{
+                                100
+                        }
+                                : new float[]{
                                 50,
                                 50
                         }
@@ -846,8 +882,8 @@ public class FacturaPdfService {
                 new Paragraph(
                         "NIF: "
                                 + valor(
-                                        facturaPersistida.getEmpresaNif()
-                                ),
+                                facturaPersistida.getEmpresaNif()
+                        ),
                         normal
                 )
         );
@@ -862,50 +898,53 @@ public class FacturaPdfService {
                 emisor
         );
 
-        PdfPCell cliente =
-                new PdfPCell();
+        if (!simplificada) {
 
-        cliente.setPadding(
-                mm(3)
-        );
+            PdfPCell cliente =
+                    new PdfPCell();
 
-        cliente.addElement(
-                new Paragraph(
-                        "DESTINATARIO",
-                        titulo
-                )
-        );
-
-        cliente.addElement(
-                new Paragraph(
-                        valor(
-                                factura.clienteNombre()
-                        ),
-                        normal
-                )
-        );
-
-        if (factura.clienteNif() != null
-                && !factura.clienteNif().isBlank()) {
+            cliente.setPadding(
+                    mm(3)
+            );
 
             cliente.addElement(
                     new Paragraph(
-                            "NIF: "
-                                    + factura.clienteNif(),
+                            "DESTINATARIO",
+                            titulo
+                    )
+            );
+
+            cliente.addElement(
+                    new Paragraph(
+                            valor(
+                                    factura.clienteNombre()
+                            ),
                             normal
                     )
             );
+
+            if (factura.clienteNif() != null
+                    && !factura.clienteNif().isBlank()) {
+
+                cliente.addElement(
+                        new Paragraph(
+                                "NIF: "
+                                        + factura.clienteNif(),
+                                normal
+                        )
+                );
+            }
+
+            agregarDireccionCliente(
+                    cliente,
+                    factura,
+                    normal
+            );
+
+            tabla.addCell(
+                    cliente
+            );
         }
-
-        agregarDireccionCliente(
-                cliente,
-                factura,
-                normal
-        );
-
-        tabla.addCell(
-                cliente
-        );
 
         documento.add(
                 tabla
@@ -1028,8 +1067,8 @@ public class FacturaPdfService {
 
                 impuesto += " "
                         + numero(
-                                linea.porcentajeImpuesto()
-                        )
+                        linea.porcentajeImpuesto()
+                )
                         + "%";
             }
 
