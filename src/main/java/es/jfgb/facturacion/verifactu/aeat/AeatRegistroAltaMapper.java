@@ -134,11 +134,22 @@ public class AeatRegistroAltaMapper {
          * =====================================================
          */
 
-        alta.setDestinatarios(
-                crearDestinatarios(
-                        registro
-                )
-        );
+        /*
+         * Las facturas F2 no identifican destinatario.
+         *
+         * Para F1 y las rectificativas actualmente
+         * soportadas se mantiene el destinatario.
+         */
+        if (!"F2".equals(
+                registro.getTipoFactura()
+        )) {
+
+            alta.setDestinatarios(
+                    crearDestinatarios(
+                            registro
+                    )
+            );
+        }
 
         /*
          * =====================================================

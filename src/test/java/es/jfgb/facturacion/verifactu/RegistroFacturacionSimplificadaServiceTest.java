@@ -8,6 +8,9 @@ import es.jfgb.facturacion.factura.Factura;
 import es.jfgb.facturacion.factura.FacturaLinea;
 import es.jfgb.facturacion.factura.TipoFactura;
 import es.jfgb.facturacion.serie.SerieFacturacion;
+import es.jfgb.facturacion.verifactu.aeat.AeatRegistroAltaMapper;
+import es.jfgb.facturacion.verifactu.aeat.AeatSolicitudAltaXmlBuilder;
+import es.jfgb.facturacion.verifactu.aeat.AeatXmlSchemaValidator;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
@@ -15,9 +18,12 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -358,6 +364,52 @@ class RegistroFacturacionSimplificadaServiceTest {
         assertEquals(
                 EstadoEnvioRegistro.PENDIENTE,
                 registro.getEstadoEnvio()
+        );
+
+        /*
+         * El repositorio esta simulado y no asigna ID.
+         * El mapper AEAT exige un registro ya persistido.
+         */
+        asignarId(
+                registro,
+                40L
+        );
+
+        AeatSolicitudAltaXmlBuilder xmlBuilder =
+                new AeatSolicitudAltaXmlBuilder(
+                        new AeatRegistroAltaMapper()
+                );
+
+        String xml =
+                xmlBuilder.generarXml(
+                        registro
+                );
+
+        assertNotNull(
+                xml
+        );
+
+        assertTrue(
+                xml.contains(
+                        ">F2<"
+                ),
+                xml
+        );
+
+        assertFalse(
+                xml.contains(
+                        "Destinatarios"
+                ),
+                xml
+        );
+
+        AeatXmlSchemaValidator validator =
+                new AeatXmlSchemaValidator();
+
+        assertDoesNotThrow(
+                () -> validator.validar(
+                        xml
+                )
         );
 
         assertEquals(
