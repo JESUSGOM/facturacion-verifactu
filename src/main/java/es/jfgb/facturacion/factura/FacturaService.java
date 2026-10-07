@@ -57,13 +57,13 @@ public class FacturaService {
 
         Empresa empresa =
                 empresaRepository.findById(
-                        empresaId
-                )
-                .orElseThrow(() ->
-                        new ResponseStatusException(
-                                HttpStatus.NOT_FOUND,
-                                "Empresa no encontrada"
-                        ));
+                                empresaId
+                        )
+                        .orElseThrow(() ->
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
+                                        "Empresa no encontrada"
+                                ));
 
 
         if (!empresa.isActiva()) {
@@ -298,20 +298,7 @@ public class FacturaService {
             );
         }
 
-        /*
-         * R5 rectifica una factura simplificada.
-         *
-         * El programa todavia no genera F2, por lo que no
-         * permitimos crear una R5 que no pueda vincularse
-         * correctamente a una factura simplificada.
-         */
-        if (request.tipoFactura() == TipoFactura.R5) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "R5 requiere rectificar una factura simplificada F2, "
-                            + "todavia no soportada"
-            );
-        }
+
 
         if (request.tipoRectificativa() == null) {
             throw new ResponseStatusException(
@@ -440,6 +427,10 @@ public class FacturaService {
         Cliente cliente = null;
         Factura primeraOriginal = null;
 
+        boolean rectificaSimplificada =
+                request.tipoFactura()
+                        == TipoFactura.R5;
+
         BigDecimal baseOriginal =
                 BigDecimal.ZERO;
 
@@ -475,40 +466,69 @@ public class FacturaService {
                 );
             }
 
-            /*
-             * Primera version del circuito:
-             * rectificamos facturas completas F1.
-             *
-             * R5 queda reservado para F2 cuando el programa
-             * incorpore factura simplificada.
-             */
+            TipoFactura tipoOriginalEsperado =
+                    rectificaSimplificada
+                            ? TipoFactura.F2
+                            : TipoFactura.F1;
+
             if (original.getTipoFactura()
-                    != TipoFactura.F1) {
+                    != tipoOriginalEsperado) {
 
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
-                        "Por ahora solo se pueden rectificar "
+                        rectificaSimplificada
+                                ? "Una factura R5 solo puede rectificar "
+                                + "facturas originales F2"
+                                : "Las facturas R1-R4 solo pueden rectificar "
                                 + "facturas originales F1"
                 );
             }
 
-            if (cliente == null) {
-
-                cliente =
-                        original.getCliente();
+            if (primeraOriginal == null) {
 
                 primeraOriginal =
                         original;
+            }
 
-            } else if (!cliente.getId().equals(
-                    original.getCliente().getId()
-            )) {
+            if (rectificaSimplificada) {
 
-                throw new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "Todas las facturas originales deben "
-                                + "pertenecer al mismo cliente"
-                );
+                if (original.getCliente() != null) {
+
+                    throw new ResponseStatusException(
+                            HttpStatus.BAD_REQUEST,
+                            "La factura F2 original no debe tener "
+                                    + "destinatario identificado"
+                    );
+                }
+
+            } else {
+
+                Cliente clienteOriginal =
+                        original.getCliente();
+
+                if (clienteOriginal == null) {
+
+                    throw new ResponseStatusException(
+                            HttpStatus.BAD_REQUEST,
+                            "La factura original F1 no tiene cliente"
+                    );
+                }
+
+                if (cliente == null) {
+
+                    cliente =
+                            clienteOriginal;
+
+                } else if (!cliente.getId().equals(
+                        clienteOriginal.getId()
+                )) {
+
+                    throw new ResponseStatusException(
+                            HttpStatus.BAD_REQUEST,
+                            "Todas las facturas originales deben "
+                                    + "pertenecer al mismo cliente"
+                    );
+                }
             }
 
             baseOriginal =
@@ -537,8 +557,7 @@ public class FacturaService {
             );
         }
 
-        if (cliente == null
-                || primeraOriginal == null) {
+        if (primeraOriginal == null) {
 
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -546,17 +565,27 @@ public class FacturaService {
             );
         }
 
-        factura.setCliente(
-                cliente
-        );
+        if (rectificaSimplificada) {
 
-        /*
-         * Conservamos el snapshot historico del destinatario
-         * de la primera factura original.
-         *
-         * No dependemos de que el maestro Cliente se haya
-         * modificado posteriormente.
-         */
+            factura.setCliente(
+                    null
+            );
+
+        } else {
+
+            if (cliente == null) {
+
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "No se ha podido determinar el cliente original"
+                );
+            }
+
+            factura.setCliente(
+                    cliente
+            );
+        }
+
         copiarDatosClienteDesdeFactura(
                 factura,
                 primeraOriginal
@@ -696,8 +725,8 @@ public class FacturaService {
             if (porcentaje == null
                     || porcentaje.compareTo(BigDecimal.ZERO) < 0
                     || porcentaje.compareTo(
-                            new BigDecimal("100")
-                    ) > 0) {
+                    new BigDecimal("100")
+            ) > 0) {
 
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
@@ -1780,14 +1809,14 @@ public class FacturaService {
                     precioUnitario
             );
 
-        /*
-         * El circuito ordinario solo genera importes positivos.
-         * Las disminuciones se habilitaran exclusivamente
-         * mediante el circuito especifico de rectificativas.
-         */
-        linea.setSigno(
-                1
-        );
+            /*
+             * El circuito ordinario solo genera importes positivos.
+             * Las disminuciones se habilitaran exclusivamente
+             * mediante el circuito especifico de rectificativas.
+             */
+            linea.setSigno(
+                    1
+            );
 
             linea.setTipoImpuesto(
                     producto.getTipoImpuesto()
