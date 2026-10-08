@@ -1114,20 +1114,46 @@ public class FacturaService {
     public List<FacturaResponse> listarRectificables(
             Long empresaId) {
 
+        return listarRectificables(
+                empresaId,
+                null
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public List<FacturaResponse> listarRectificables(
+            Long empresaId,
+            TipoFactura tipoFacturaRectificativa) {
+
         comprobarEmpresa(
                 empresaId
         );
+
+        if (tipoFacturaRectificativa != null
+                && !tipoFacturaRectificativa.esRectificativa()) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "El tipo de factura debe ser rectificativo"
+            );
+        }
+
+        TipoFactura tipoFacturaOriginal =
+                tipoFacturaRectificativa == TipoFactura.R5
+                        ? TipoFactura.F2
+                        : TipoFactura.F1;
 
         return facturaRepository
                 .findAllByEmpresa_IdAndEstadoAndTipoFacturaOrderByIdDesc(
                         empresaId,
                         EstadoFactura.EMITIDA,
-                        TipoFactura.F1
+                        tipoFacturaOriginal
                 )
                 .stream()
                 .map(this::convertir)
                 .toList();
     }
+
     @Transactional(readOnly = true)
     public List<FacturaResponse> listar(
             Long empresaId) {

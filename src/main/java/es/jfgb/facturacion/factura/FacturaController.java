@@ -74,14 +74,21 @@ public class FacturaController {
                 request
         );
     }
+
     @GetMapping("/rectificables")
     public List<FacturaResponse> listarRectificables(
-            @PathVariable Long empresaId) {
+            @PathVariable Long empresaId,
+            @RequestParam(
+                    name = "tipoFactura",
+                    required = false
+            ) TipoFactura tipoFactura) {
 
         return facturaService.listarRectificables(
-                empresaId
+                empresaId,
+                tipoFactura
         );
     }
+
     @GetMapping
     public List<FacturaResponse> listar(
             @PathVariable Long empresaId) {
