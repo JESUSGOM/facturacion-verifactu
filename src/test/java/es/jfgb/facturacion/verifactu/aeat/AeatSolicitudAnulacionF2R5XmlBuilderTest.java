@@ -4,6 +4,13 @@ import es.jfgb.facturacion.verifactu.RegistroFacturacion;
 import es.jfgb.facturacion.verifactu.TipoRegistroFacturacion;
 import org.junit.jupiter.api.Test;
 
+import javax.xml.XMLConstants;
+import javax.xml.transform.stream.StreamSource;
+import javax.xml.validation.Schema;
+import javax.xml.validation.SchemaFactory;
+import java.io.StringReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -23,7 +30,8 @@ class AeatSolicitudAnulacionF2R5XmlBuilderTest {
                     + "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB";
 
     @Test
-    void generaXmlAnulacionF2SinDestinatarios() {
+    void generaXmlAnulacionF2SinDestinatarios()
+            throws Exception {
 
         String xml =
                 generarXml(
@@ -102,10 +110,19 @@ class AeatSolicitudAnulacionF2R5XmlBuilderTest {
                         "RegistroAlta"
                 )
         );
+
+        validarContraXsd(
+                xml
+        );
+
+        System.out.println(
+                "VERIFACTU_ANULACION_F2_XSD_VALIDO=true"
+        );
     }
 
     @Test
-    void generaXmlAnulacionR5SinDestinatarios() {
+    void generaXmlAnulacionR5SinDestinatarios()
+            throws Exception {
 
         String xml =
                 generarXml(
@@ -182,6 +199,94 @@ class AeatSolicitudAnulacionF2R5XmlBuilderTest {
         assertFalse(
                 xml.contains(
                         "RegistroAlta"
+                )
+        );
+
+        validarContraXsd(
+                xml
+        );
+
+        System.out.println(
+                "VERIFACTU_ANULACION_R5_XSD_VALIDO=true"
+        );
+    }
+
+    private void validarContraXsd(
+            String xml)
+            throws Exception {
+
+        /*
+         * Validacion exclusivamente local.
+         *
+         * No se crea ningun cliente SOAP,
+         * no se utiliza certificado
+         * y no se realiza comunicacion con AEAT.
+         */
+        Path xsdPrincipal =
+                Path.of(
+                        "src",
+                        "main",
+                        "resources",
+                        "aeat",
+                        "verifactu",
+                        "wsdl",
+                        "SuministroLR.xsd"
+                );
+
+        assertTrue(
+                Files.exists(
+                        xsdPrincipal
+                ),
+                "No existe el XSD local SuministroLR.xsd"
+        );
+
+        SchemaFactory schemaFactory =
+                SchemaFactory.newInstance(
+                        XMLConstants.W3C_XML_SCHEMA_NS_URI
+                );
+
+        /*
+         * Los XSD pueden importar otros esquemas
+         * del mismo directorio. Solo permitimos
+         * resolver recursos locales mediante file.
+         */
+        schemaFactory.setProperty(
+                XMLConstants.ACCESS_EXTERNAL_SCHEMA,
+                "file"
+        );
+
+        schemaFactory.setProperty(
+                XMLConstants.ACCESS_EXTERNAL_DTD,
+                ""
+        );
+
+        Schema schema =
+                schemaFactory.newSchema(
+                        xsdPrincipal.toFile()
+                );
+
+        var validator =
+                schema.newValidator();
+
+        validator.setProperty(
+                XMLConstants.ACCESS_EXTERNAL_SCHEMA,
+                "file"
+        );
+
+        validator.setProperty(
+                XMLConstants.ACCESS_EXTERNAL_DTD,
+                ""
+        );
+
+        /*
+         * Si el XML no cumple los XSD locales,
+         * validate() lanza una excepcion y el test falla.
+         */
+        validator.validate(
+                new StreamSource(
+                        new StringReader(
+                                xml
+                        )
                 )
         );
     }
