@@ -810,20 +810,30 @@ public class FacturaPdfService {
                 == TipoFactura.F2;
     }
 
+    private boolean esSinDestinatario(
+            FacturaResponse factura) {
+
+        return factura != null
+                && (
+                factura.tipoFactura() == TipoFactura.F2
+                        || factura.tipoFactura() == TipoFactura.R5
+        );
+    }
+
     private void agregarDatosFiscales(
             Document documento,
             Factura facturaPersistida,
             FacturaResponse factura)
             throws Exception {
 
-        boolean simplificada =
-                esSimplificada(
+        boolean sinDestinatario =
+                esSinDestinatario(
                         factura
                 );
 
         PdfPTable tabla =
                 new PdfPTable(
-                        simplificada
+                        sinDestinatario
                                 ? new float[]{
                                 100
                         }
@@ -898,7 +908,7 @@ public class FacturaPdfService {
                 emisor
         );
 
-        if (!simplificada) {
+        if (!sinDestinatario) {
 
             PdfPCell cliente =
                     new PdfPCell();
