@@ -2,6 +2,7 @@ package es.jfgb.facturacion.verifactu.aeat;
 
 import es.jfgb.facturacion.verifactu.RegistroFacturacion;
 import es.jfgb.facturacion.verifactu.RegistroFacturacionRepository;
+import es.jfgb.facturacion.verifactu.TipoRegistroFacturacion;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,29 +15,36 @@ public class AeatVistaPreviaService {
             registroRepository;
 
     private final AeatSolicitudAltaXmlBuilder
-            xmlBuilder;
+            altaXmlBuilder;
+
+    private final AeatSolicitudAnulacionXmlBuilder
+            anulacionXmlBuilder;
 
     public AeatVistaPreviaService(
             RegistroFacturacionRepository registroRepository,
-            AeatSolicitudAltaXmlBuilder xmlBuilder) {
+            AeatSolicitudAltaXmlBuilder altaXmlBuilder,
+            AeatSolicitudAnulacionXmlBuilder anulacionXmlBuilder) {
 
         this.registroRepository =
                 registroRepository;
 
-        this.xmlBuilder =
-                xmlBuilder;
+        this.altaXmlBuilder =
+                altaXmlBuilder;
+
+        this.anulacionXmlBuilder =
+                anulacionXmlBuilder;
     }
 
     /**
      * Genera localmente el XML VERI*FACTU
-     * correspondiente a un registro de facturación.
+     * correspondiente a un registro de facturacion.
      *
      * IMPORTANTE:
      *
      * - No modifica el registro.
      * - No incrementa intentos.
      * - No cambia PENDIENTE a ENVIANDO.
-     * - No realiza ninguna conexión con AEAT.
+     * - No realiza ninguna conexion con AEAT.
      */
     @Transactional(readOnly = true)
     public String generarXml(
@@ -52,20 +60,46 @@ public class AeatVistaPreviaService {
                         .orElseThrow(() ->
                                 new ResponseStatusException(
                                         HttpStatus.NOT_FOUND,
-                                        "Registro de facturación "
+                                        "Registro de facturacion "
                                                 + "no encontrado"
                                 ));
 
+        TipoRegistroFacturacion tipoRegistro =
+                registro.getTipoRegistro();
+
+        if (tipoRegistro == null) {
+            throw new IllegalStateException(
+                    "El registro de facturacion "
+                            + "no tiene tipo de registro"
+            );
+        }
+
         /*
-         * La generación se realiza dentro de esta
-         * transacción para que Hibernate pueda cargar
-         * las relaciones LAZY necesarias:
+         * La generacion se realiza dentro de esta
+         * transaccion para que Hibernate pueda cargar
+         * las relaciones LAZY necesarias.
+         *
+         * Para ALTA pueden ser necesarias, entre otras:
          *
          * - desgloses
+         * - facturas rectificadas
+         * - registro anterior
+         *
+         * Para ANULACION:
+         *
          * - registro anterior
          */
-        return xmlBuilder.generarXml(
-                registro
-        );
+        return switch (tipoRegistro) {
+
+            case ALTA ->
+                    altaXmlBuilder.generarXml(
+                            registro
+                    );
+
+            case ANULACION ->
+                    anulacionXmlBuilder.generarXml(
+                            registro
+                    );
+        };
     }
 }
