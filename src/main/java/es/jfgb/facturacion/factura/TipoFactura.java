@@ -4,6 +4,8 @@ public enum TipoFactura {
 
     F1,
     F2,
+    F3,
+
 
     R1,
     R2,
