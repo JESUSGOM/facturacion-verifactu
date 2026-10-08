@@ -1213,13 +1213,17 @@ public class FacturaService {
          * entretanto el cliente o un producto ha quedado
          * desactivado.
          */
-        if (factura.getTipoFactura() == TipoFactura.F2) {
+        boolean facturaSinDestinatario =
+                factura.getTipoFactura() == TipoFactura.F2
+                        || factura.getTipoFactura() == TipoFactura.R5;
+
+        if (facturaSinDestinatario) {
 
             if (factura.getCliente() != null) {
 
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
-                        "La factura F2 sin destinatario no debe tener cliente"
+                        "La factura F2/R5 sin destinatario no debe tener cliente"
                 );
             }
 

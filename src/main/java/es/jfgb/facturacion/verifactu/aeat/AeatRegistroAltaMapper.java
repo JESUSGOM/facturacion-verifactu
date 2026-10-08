@@ -142,6 +142,9 @@ public class AeatRegistroAltaMapper {
          */
         if (!"F2".equals(
                 registro.getTipoFactura()
+        )
+                && !"R5".equals(
+                registro.getTipoFactura()
         )) {
 
             alta.setDestinatarios(

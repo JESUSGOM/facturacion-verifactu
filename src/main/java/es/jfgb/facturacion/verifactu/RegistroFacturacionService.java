@@ -117,7 +117,8 @@ public class RegistroFacturacionService {
         String destinatarioPais = null;
         String destinatarioNif = null;
 
-        if (factura.getTipoFactura() != TipoFactura.F2) {
+        if (factura.getTipoFactura() != TipoFactura.F2
+                && factura.getTipoFactura() != TipoFactura.R5) {
 
             destinatarioNombre =
                     obligatorio(
