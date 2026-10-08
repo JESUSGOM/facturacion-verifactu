@@ -233,6 +233,93 @@ public class FacturaService {
                 guardada
         );
     }
+
+    @Transactional
+    public FacturaResponse modificarBorradorSimplificado(
+            Long empresaId,
+            Long facturaId,
+            FacturaSimplificadaRequest request) {
+
+        if (request == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Debe indicar los datos de la factura simplificada"
+            );
+        }
+
+        Factura factura =
+                obtenerFacturaConBloqueo(
+                        empresaId,
+                        facturaId
+                );
+
+        comprobarBorrador(
+                factura,
+                "Solo se puede modificar una factura simplificada "
+                        + "en estado BORRADOR"
+        );
+
+        if (factura.getTipoFactura()
+                != TipoFactura.F2) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "La factura indicada no es una factura simplificada F2"
+            );
+        }
+
+        SerieFacturacion serie =
+                obtenerSerieActiva(
+                        empresaId,
+                        request.serieId()
+                );
+
+        if (serie.getTipoSerie()
+                != TipoSerieFacturacion.SIMPLIFICADA) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "La serie seleccionada no es una serie simplificada"
+            );
+        }
+
+        /*
+         * Al tratarse de un BORRADOR podemos sustituir
+         * completamente sus lineas.
+         */
+        factura.getLineas().clear();
+
+        /*
+         * F2 sin destinatario identificado.
+         */
+        factura.setCliente(
+                null
+        );
+
+        factura.setSerie(
+                serie
+        );
+
+        factura.setTipoFactura(
+                TipoFactura.F2
+        );
+
+        aplicarBorradorSimplificado(
+                factura,
+                empresaId,
+                request
+        );
+
+        Factura guardada =
+                facturaRepository.saveAndFlush(
+                        factura
+                );
+
+        return convertir(
+                guardada
+        );
+    }
+
     /**
      * Crea una factura rectificativa en estado BORRADOR.
      *

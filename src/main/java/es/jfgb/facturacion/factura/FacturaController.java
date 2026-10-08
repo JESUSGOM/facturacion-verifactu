@@ -51,6 +51,21 @@ public class FacturaController {
                 request
         );
     }
+
+    @PutMapping("/simplificadas/{facturaId}")
+    public FacturaResponse modificarSimplificada(
+            @PathVariable Long empresaId,
+            @PathVariable Long facturaId,
+            @Valid @RequestBody
+            FacturaSimplificadaRequest request) {
+
+        return facturaService.modificarBorradorSimplificado(
+                empresaId,
+                facturaId,
+                request
+        );
+    }
+
     @PostMapping("/rectificativas")
     @ResponseStatus(HttpStatus.CREATED)
     public FacturaResponse crearRectificativa(
