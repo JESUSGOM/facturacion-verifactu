@@ -6,6 +6,7 @@ import es.jfgb.facturacion.factura.Factura;
 import es.jfgb.facturacion.factura.EstadoFactura;
 import es.jfgb.facturacion.factura.FacturaLinea;
 import es.jfgb.facturacion.factura.FacturaRectificada;
+import es.jfgb.facturacion.factura.FacturaSustituida;
 import es.jfgb.facturacion.factura.TipoFactura;
 import es.jfgb.facturacion.factura.TipoRectificativa;
 import org.springframework.http.HttpStatus;
@@ -378,6 +379,139 @@ public class RegistroFacturacionService {
             }
         }
 
+        /*
+         * Snapshot de las facturas simplificadas sustituidas
+         * por una factura F3.
+         *
+         * La relacion funcional Factura -> F2 puede cambiar
+         * en un borrador, pero una vez generado el registro
+         * VERI*FACTU conservamos una copia fiscal independiente.
+         *
+         * La identificacion de las F2 sustituidas es opcional.
+         */
+        if (factura.getTipoFactura() == TipoFactura.F3) {
+
+            List<FacturaSustituida> sustituidas =
+                    factura.getFacturasSustituidas();
+
+            if (sustituidas != null
+                    && sustituidas.size() > 1000) {
+
+                throw error(
+                        "La factura F3 contiene mas de 1000 "
+                                + "facturas sustituidas"
+                );
+            }
+
+            if (sustituidas != null) {
+
+                for (FacturaSustituida relacion
+                        : sustituidas) {
+
+                    if (relacion == null
+                            || relacion.getFacturaSustituida() == null) {
+
+                        throw error(
+                                "La factura F3 contiene una relacion "
+                                        + "de sustitucion incompleta"
+                        );
+                    }
+
+                    Factura original =
+                            relacion.getFacturaSustituida();
+
+                    if (original.getTipoFactura()
+                            != TipoFactura.F2) {
+
+                        throw error(
+                                "Una factura F3 solo puede sustituir "
+                                        + "facturas F2"
+                        );
+                    }
+
+                    if (original.getEstado()
+                            != EstadoFactura.EMITIDA) {
+
+                        throw error(
+                                "La factura F2 sustituida debe estar EMITIDA"
+                        );
+                    }
+
+                    if (original.getEmpresa() == null
+                            || !empresaId.equals(
+                            original.getEmpresa().getId()
+                    )) {
+
+                        throw error(
+                                "La factura F2 sustituida pertenece "
+                                        + "a otra empresa"
+                        );
+                    }
+
+                    if (original.getSerie() == null
+                            || original.getNumero() == null
+                            || original.getFechaExpedicion() == null) {
+
+                        throw error(
+                                "La factura F2 sustituida no tiene "
+                                        + "identificacion fiscal completa"
+                        );
+                    }
+
+                    String numSerieOriginal =
+                            obligatorio(
+                                    original.getSerie().getCodigo(),
+                                    "Serie de factura sustituida",
+                                    30
+                            )
+                                    + "-"
+                                    + original.getNumero();
+
+                    RegistroFacturacionSustituida snapshot =
+                            new RegistroFacturacionSustituida();
+
+                    snapshot.setFacturaSustituidaId(
+                            original.getId()
+                    );
+
+                    snapshot.setOrden(
+                            relacion.getOrden().shortValue()
+                    );
+
+                    snapshot.setNifEmisor(
+                            obligatorio(
+                                    original.getEmpresaNif(),
+                                    "NIF de factura sustituida",
+                                    20
+                            )
+                    );
+
+                    snapshot.setNumSerieFactura(
+                            obligatorio(
+                                    numSerieOriginal,
+                                    "Numero/serie de factura sustituida",
+                                    60
+                            )
+                    );
+
+                    snapshot.setFechaExpedicion(
+                            original.getFechaExpedicion()
+                    );
+
+                    registro.addFacturaSustituida(
+                            snapshot
+                    );
+                }
+            }
+
+        } else if (factura.getFacturasSustituidas() != null
+                && !factura.getFacturasSustituidas().isEmpty()) {
+
+            throw error(
+                    "Solo una factura F3 puede contener "
+                            + "facturas sustituidas"
+            );
+        }
         registro.setCuotaTotal(
                 normalizarImporte(
                         factura.getCuotaImpuesto()

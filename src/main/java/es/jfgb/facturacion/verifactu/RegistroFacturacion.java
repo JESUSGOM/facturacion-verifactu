@@ -308,6 +308,14 @@ public class RegistroFacturacion {
     @OrderBy("orden ASC")
     private List<RegistroFacturacionRectificada> facturasRectificadas =
             new ArrayList<>();
+    @OneToMany(
+            mappedBy = "registroFacturacion",
+            cascade = CascadeType.PERSIST,
+            fetch = FetchType.LAZY
+    )
+    @OrderBy("orden ASC")
+    private List<RegistroFacturacionSustituida> facturasSustituidas =
+            new ArrayList<>();
 
     /*
      * =========================================================
@@ -424,6 +432,21 @@ public class RegistroFacturacion {
         );
     }
 
+    public void addFacturaSustituida(
+            RegistroFacturacionSustituida sustituida) {
+
+        if (sustituida == null) {
+            return;
+        }
+
+        sustituida.setRegistroFacturacion(
+                this
+        );
+
+        facturasSustituidas.add(
+                sustituida
+        );
+    }
     /*
      * =========================================================
      * Getters / Setters
@@ -752,6 +775,9 @@ public class RegistroFacturacion {
         return facturasRectificadas;
     }
 
+    public List<RegistroFacturacionSustituida> getFacturasSustituidas() {
+        return facturasSustituidas;
+    }
     public EstadoEnvioRegistro getEstadoEnvio() {
         return estadoEnvio;
     }

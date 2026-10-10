@@ -17,6 +17,7 @@ import es.gob.agenciatributaria.www2.static_files.common.internet.dep.aplicacion
 import es.jfgb.facturacion.verifactu.RegistroFacturacion;
 import es.jfgb.facturacion.verifactu.RegistroFacturacionDesglose;
 import es.jfgb.facturacion.verifactu.RegistroFacturacionRectificada;
+import es.jfgb.facturacion.verifactu.RegistroFacturacionSustituida;
 import es.jfgb.facturacion.verifactu.TipoRegistroFacturacion;
 import org.springframework.stereotype.Component;
 
@@ -113,6 +114,22 @@ public class AeatRegistroAltaMapper {
          * =====================================================
          */
         mapearRectificacion(
+                alta,
+                registro
+        );
+
+        /*
+         * =====================================================
+         * FACTURAS SUSTITUIDAS F3
+         * =====================================================
+         *
+         * El bloque es opcional.
+         *
+         * Cuando exista se construye exclusivamente a partir
+         * del snapshot fiscal inmutable del registro.
+         * =====================================================
+         */
+        mapearSustitucion(
                 alta,
                 registro
         );
@@ -454,6 +471,129 @@ public class AeatRegistroAltaMapper {
         }
 
         return facturasRectificadas;
+    }
+
+    private void mapearSustitucion(
+            RegistroFacturacionAltaType alta,
+            RegistroFacturacion registro) {
+
+        List<RegistroFacturacionSustituida> sustituidas =
+                registro.getFacturasSustituidas();
+
+        boolean facturaF3 =
+                "F3".equals(
+                        registro.getTipoFactura()
+                );
+
+        /*
+         * Ningun tipo distinto de F3 puede contener
+         * snapshots de facturas sustituidas.
+         */
+        if (!facturaF3) {
+
+            if (sustituidas != null
+                    && !sustituidas.isEmpty()) {
+
+                throw new IllegalStateException(
+                        "Solo una factura F3 puede contener "
+                                + "FacturasSustituidas"
+                );
+            }
+
+            return;
+        }
+
+        /*
+         * La identificacion individual de las facturas
+         * simplificadas sustituidas es opcional.
+         *
+         * Si no existen snapshots, el elemento XML
+         * FacturasSustituidas debe quedar ausente.
+         */
+        if (sustituidas == null
+                || sustituidas.isEmpty()) {
+
+            return;
+        }
+
+        alta.setFacturasSustituidas(
+                crearFacturasSustituidas(
+                        registro
+                )
+        );
+    }
+
+
+    private RegistroFacturacionAltaType.FacturasSustituidas
+    crearFacturasSustituidas(
+            RegistroFacturacion registro) {
+
+        List<RegistroFacturacionSustituida> origenes =
+                registro.getFacturasSustituidas();
+
+        if (origenes == null
+                || origenes.isEmpty()) {
+
+            return null;
+        }
+
+        if (origenes.size() > 1000) {
+
+            throw new IllegalStateException(
+                    "La factura F3 contiene mas de 1000 "
+                            + "facturas sustituidas"
+            );
+        }
+
+        RegistroFacturacionAltaType.FacturasSustituidas
+                facturasSustituidas =
+                new RegistroFacturacionAltaType
+                        .FacturasSustituidas();
+
+        for (RegistroFacturacionSustituida origen
+                : origenes) {
+
+            if (origen == null) {
+
+                throw new IllegalStateException(
+                        "Se ha encontrado una factura "
+                                + "sustituida nula"
+                );
+            }
+
+            IDFacturaARType idFactura =
+                    new IDFacturaARType();
+
+            idFactura.setIDEmisorFactura(
+                    obligatorio(
+                            origen.getNifEmisor(),
+                            "IDEmisorFactura "
+                                    + "de factura sustituida"
+                    )
+            );
+
+            idFactura.setNumSerieFactura(
+                    obligatorio(
+                            origen.getNumSerieFactura(),
+                            "NumSerieFactura "
+                                    + "de factura sustituida"
+                    )
+            );
+
+            idFactura.setFechaExpedicionFactura(
+                    formatearFecha(
+                            origen.getFechaExpedicion()
+                    )
+            );
+
+            facturasSustituidas
+                    .getIDFacturaSustituida()
+                    .add(
+                            idFactura
+                    );
+        }
+
+        return facturasSustituidas;
     }
 
     private RegistroFacturacionAltaType.Destinatarios

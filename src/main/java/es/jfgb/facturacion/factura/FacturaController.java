@@ -66,6 +66,40 @@ public class FacturaController {
         );
     }
 
+    @PostMapping("/sustitutivas")
+    @ResponseStatus(HttpStatus.CREATED)
+    public FacturaResponse crearSustitutiva(
+            @PathVariable Long empresaId,
+            @Valid @RequestBody FacturaSustitutivaRequest request) {
+
+        return facturaService.crearBorradorSustitutivo(
+                empresaId,
+                request
+        );
+    }
+
+    @PutMapping("/sustitutivas/{facturaId}")
+    public FacturaResponse modificarSustitutiva(
+            @PathVariable Long empresaId,
+            @PathVariable Long facturaId,
+            @Valid @RequestBody FacturaSustitutivaRequest request) {
+
+        return facturaService.modificarBorradorSustitutivo(
+                empresaId,
+                facturaId,
+                request
+        );
+    }
+
+    @GetMapping("/sustituibles")
+    public List<FacturaResponse> listarSustituibles(
+            @PathVariable Long empresaId) {
+
+        return facturaService.listarSustituibles(
+                empresaId
+        );
+    }
+
     @PostMapping("/rectificativas")
     @ResponseStatus(HttpStatus.CREATED)
     public FacturaResponse crearRectificativa(

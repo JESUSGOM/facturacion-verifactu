@@ -171,6 +171,21 @@ public class Factura {
     private List<FacturaRectificada> facturasRectificadas =
             new ArrayList<>();
 
+    /*
+     * Facturas simplificadas F2 sustituidas por esta factura F3.
+     *
+     * Para los restantes tipos de factura esta coleccion
+     * permanece vacia.
+     */
+    @OneToMany(
+            mappedBy = "facturaSustitutiva",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    @OrderBy("orden ASC")
+    private List<FacturaSustituida> facturasSustituidas =
+            new ArrayList<>();
+
     @Column(name = "fecha_creacion", nullable = false, updatable = false)
     private Instant fechaCreacion;
 
@@ -533,6 +548,28 @@ public class Factura {
 
         facturasRectificadas.clear();
     }
+
+    public List<FacturaSustituida> getFacturasSustituidas() {
+        return facturasSustituidas;
+    }
+
+    public void agregarFacturaSustituida(
+            FacturaSustituida relacion) {
+
+        relacion.setFacturaSustitutiva(
+                this
+        );
+
+        facturasSustituidas.add(
+                relacion
+        );
+    }
+
+    public void limpiarFacturasSustituidas() {
+
+        facturasSustituidas.clear();
+    }
+
     public Instant getFechaCreacion() {
         return fechaCreacion;
     }

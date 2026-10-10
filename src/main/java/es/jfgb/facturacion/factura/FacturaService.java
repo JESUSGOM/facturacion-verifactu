@@ -69,7 +69,7 @@ public class FacturaService {
         if (!empresa.isActiva()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "La empresa no estÃ¡ activa"
+                    "La empresa no estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ activa"
             );
         }
 
@@ -118,6 +118,218 @@ public class FacturaService {
                 cliente,
                 serie,
                 request
+        );
+
+        Factura guardada =
+                facturaRepository.saveAndFlush(
+                        factura
+                );
+
+        return convertir(
+                guardada
+        );
+    }
+
+    /**
+     * Crea una factura F3 en estado BORRADOR.
+     *
+     * La factura F3 identifica al destinatario y puede
+     * referenciar las facturas simplificadas F2 sustituidas.
+     *
+     * La identificacion de las F2 sustituidas es opcional.
+     *
+     * En esta fase no se crea ningun registro VERI*FACTU
+     * y no se realiza ningun envio a AEAT.
+     */
+    @Transactional
+    public FacturaResponse crearBorradorSustitutivo(
+            Long empresaId,
+            FacturaSustitutivaRequest request) {
+
+        if (request == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Debe indicar los datos de la factura sustitutiva"
+            );
+        }
+
+        Empresa empresa =
+                empresaRepository
+                        .findById(
+                                empresaId
+                        )
+                        .orElseThrow(() ->
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND,
+                                        "Empresa no encontrada"
+                                ));
+
+        if (!empresa.isActiva()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "La empresa no esta activa"
+            );
+        }
+
+        Cliente cliente =
+                obtenerClienteActivo(
+                        empresaId,
+                        request.clienteId()
+                );
+
+        SerieFacturacion serie =
+                obtenerSerieActiva(
+                        empresaId,
+                        request.serieId()
+                );
+
+        comprobarSerieOrdinaria(
+                serie
+        );
+
+        Factura factura =
+                new Factura();
+
+        factura.setEmpresa(
+                empresa
+        );
+
+        factura.setEstado(
+                EstadoFactura.BORRADOR
+        );
+
+        factura.setNumero(
+                null
+        );
+
+        factura.setFechaExpedicion(
+                null
+        );
+
+        factura.setFechaEmision(
+                null
+        );
+
+        FacturaRequest requestOrdinario =
+                new FacturaRequest(
+                        request.clienteId(),
+                        request.serieId(),
+                        request.observaciones(),
+                        request.lineas()
+                );
+
+        aplicarBorrador(
+                factura,
+                empresaId,
+                cliente,
+                serie,
+                requestOrdinario
+        );
+
+        factura.setTipoFactura(
+                TipoFactura.F3
+        );
+
+        aplicarFacturasSustituidas(
+                factura,
+                empresaId,
+                request.facturasSustituidasIds()
+        );
+
+        Factura guardada =
+                facturaRepository.saveAndFlush(
+                        factura
+                );
+
+        return convertir(
+                guardada
+        );
+    }
+
+    @Transactional
+    public FacturaResponse modificarBorradorSustitutivo(
+            Long empresaId,
+            Long facturaId,
+            FacturaSustitutivaRequest request) {
+
+        if (request == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Debe indicar los datos de la factura sustitutiva"
+            );
+        }
+
+        Factura factura =
+                obtenerFacturaConBloqueo(
+                        empresaId,
+                        facturaId
+                );
+
+        comprobarBorrador(
+                factura,
+                "Solo se puede modificar una factura F3 "
+                        + "en estado BORRADOR"
+        );
+
+        if (factura.getTipoFactura()
+                != TipoFactura.F3) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "La factura indicada no es una factura F3"
+            );
+        }
+
+        Cliente cliente =
+                obtenerClienteActivo(
+                        empresaId,
+                        request.clienteId()
+                );
+
+        SerieFacturacion serie =
+                obtenerSerieActiva(
+                        empresaId,
+                        request.serieId()
+                );
+
+        comprobarSerieOrdinaria(
+                serie
+        );
+
+        /*
+         * Al tratarse de un borrador podemos reemplazar
+         * completamente las lineas y las relaciones F2.
+         */
+        factura.getLineas().clear();
+
+        factura.limpiarFacturasSustituidas();
+
+        facturaRepository.flush();
+
+        FacturaRequest requestOrdinario =
+                new FacturaRequest(
+                        request.clienteId(),
+                        request.serieId(),
+                        request.observaciones(),
+                        request.lineas()
+                );
+
+        aplicarBorrador(
+                factura,
+                empresaId,
+                cliente,
+                serie,
+                requestOrdinario
+        );
+
+        factura.setTipoFactura(
+                TipoFactura.F3
+        );
+
+        aplicarFacturasSustituidas(
+                factura,
+                empresaId,
+                request.facturasSustituidasIds()
         );
 
         Factura guardada =
@@ -1121,6 +1333,16 @@ public class FacturaService {
                             + "mediante su circuito especifico"
             );
         }
+
+        if (factura.getTipoFactura() == TipoFactura.F3) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Una factura F3 debe modificarse "
+                            + "mediante su circuito especifico"
+            );
+        }
+
         if (factura.getTipoFactura() != null
                 && factura.getTipoFactura().esRectificativa()) {
 
@@ -1148,11 +1370,11 @@ public class FacturaService {
         );
 
         /*
-         * Las lÃ­neas emitidas nunca pasan por aquÃ­.
+         * Las lÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­neas emitidas nunca pasan por aquÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­.
          *
          * Al tratarse de un BORRADOR podemos reemplazar
-         * Ã­ntegramente sus lÃ­neas. orphanRemoval=true
-         * eliminarÃ¡ las anteriores al hacer flush.
+         * ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­ntegramente sus lÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­neas. orphanRemoval=true
+         * eliminarÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ las anteriores al hacer flush.
          */
         factura.getLineas().clear();
 
@@ -1280,15 +1502,32 @@ public class FacturaService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public List<FacturaResponse> listarSustituibles(
+            Long empresaId) {
+
+        return facturaRepository
+                .findAllByEmpresa_IdAndEstadoAndTipoFacturaOrderByIdDesc(
+                        empresaId,
+                        EstadoFactura.EMITIDA,
+                        TipoFactura.F2
+                )
+                .stream()
+                .map(
+                        this::convertir
+                )
+                .toList();
+    }
+
     @Transactional
     public FacturaResponse emitir(
             Long empresaId,
             Long facturaId) {
 
         /*
-         * Bloqueamos tambiÃ©n la factura.
+         * Bloqueamos tambiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©n la factura.
          *
-         * AsÃ­ dos peticiones concurrentes no pueden
+         * AsÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­ dos peticiones concurrentes no pueden
          * emitir el mismo borrador al mismo tiempo.
          */
         Factura factura =
@@ -1301,12 +1540,14 @@ public class FacturaService {
                 factura,
                 "Solo se puede emitir una factura en estado BORRADOR"
         );
+
+
         if (factura.getEmpresa() == null
                 || !factura.getEmpresa().isActiva()) {
 
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "La empresa no estÃ¡ activa"
+                    "La empresa no estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ activa"
             );
         }
 
@@ -1315,7 +1556,7 @@ public class FacturaService {
 
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "No se puede emitir una factura sin lÃ­neas"
+                    "No se puede emitir una factura sin lÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­neas"
             );
         }
 
@@ -1374,14 +1615,14 @@ public class FacturaService {
                         .orElseThrow(() ->
                                 new ResponseStatusException(
                                         HttpStatus.NOT_FOUND,
-                                        "Serie de facturaciÃ³n no encontrada"
+                                        "Serie de facturaciÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³n no encontrada"
                                 ));
 
         if (!serie.isActiva()) {
 
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "La serie de facturaciÃ³n no estÃ¡ activa"
+                    "La serie de facturaciÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³n no estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ activa"
             );
         }
 
@@ -1440,10 +1681,10 @@ public class FacturaService {
                 );
 
         /*
-         * La creaciÃ³n del registro VERI*FACTU continÃºa
-         * dentro de esta misma transacciÃ³n.
+         * La creaciÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³n del registro VERI*FACTU continÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºa
+         * dentro de esta misma transacciÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³n.
          *
-         * No realiza ningÃºn envÃ­o a AEAT.
+         * No realiza ningÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºn envÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­o a AEAT.
          */
         registroFacturacionService.crearAlta(
                 emitida
@@ -1815,6 +2056,128 @@ public class FacturaService {
                 )
         );
     }
+    private void aplicarFacturasSustituidas(
+            Factura factura,
+            Long empresaId,
+            List<Long> facturasSustituidasIds) {
+
+        factura.limpiarFacturasSustituidas();
+
+        /*
+         * AEAT permite no identificar individualmente
+         * las facturas simplificadas sustituidas.
+         */
+        if (facturasSustituidasIds == null
+                || facturasSustituidasIds.isEmpty()) {
+
+            return;
+        }
+
+        if (facturasSustituidasIds.size() > 1000) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "No se pueden identificar mas de 1000 "
+                            + "facturas sustituidas"
+            );
+        }
+
+        Set<Long> idsUnicos =
+                new HashSet<>();
+
+        int orden = 1;
+
+        for (Long facturaSustituidaId
+                : facturasSustituidasIds) {
+
+            if (facturaSustituidaId == null) {
+
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "El identificador de una factura "
+                                + "sustituida no puede ser nulo"
+                );
+            }
+
+            if (!idsUnicos.add(
+                    facturaSustituidaId
+            )) {
+
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Una factura F2 sustituida "
+                                + "no puede aparecer repetida"
+                );
+            }
+
+            Factura sustituida =
+                    facturaRepository
+                            .findByIdAndEmpresa_Id(
+                                    facturaSustituidaId,
+                                    empresaId
+                            )
+                            .orElseThrow(() ->
+                                    new ResponseStatusException(
+                                            HttpStatus.NOT_FOUND,
+                                            "Factura F2 sustituida "
+                                                    + "no encontrada"
+                                    ));
+
+            if (sustituida.getTipoFactura()
+                    != TipoFactura.F2) {
+
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Una factura F3 solo puede sustituir "
+                                + "facturas F2"
+                );
+            }
+
+            if (sustituida.getEstado()
+                    != EstadoFactura.EMITIDA) {
+
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "La factura F2 sustituida debe estar EMITIDA"
+                );
+            }
+
+            if (sustituida.getNumero() == null
+                    || sustituida.getFechaExpedicion() == null) {
+
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "La factura F2 sustituida no tiene "
+                                + "identificacion fiscal completa"
+                );
+            }
+
+            if (sustituida.getCliente() != null) {
+
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "La factura F2 sustituida no debe tener "
+                                + "destinatario identificado"
+                );
+            }
+
+            FacturaSustituida relacion =
+                    new FacturaSustituida();
+
+            relacion.setFacturaSustituida(
+                    sustituida
+            );
+
+            relacion.setOrden(
+                    orden++
+            );
+
+            factura.agregarFacturaSustituida(
+                    relacion
+            );
+        }
+    }
+
     private void aplicarBorrador(
             Factura factura,
             Long empresaId,
@@ -2037,7 +2400,7 @@ public class FacturaService {
 
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "El cliente no estÃ¡ activo"
+                    "El cliente no estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ activo"
             );
         }
 
@@ -2069,14 +2432,14 @@ public class FacturaService {
                         .orElseThrow(() ->
                                 new ResponseStatusException(
                                         HttpStatus.NOT_FOUND,
-                                        "Serie de facturaciÃ³n no encontrada"
+                                        "Serie de facturaciÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³n no encontrada"
                                 ));
 
         if (!serie.isActiva()) {
 
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "La serie de facturaciÃ³n no estÃ¡ activa"
+                    "La serie de facturaciÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³n no estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ activa"
             );
         }
 
@@ -2106,7 +2469,7 @@ public class FacturaService {
                     HttpStatus.BAD_REQUEST,
                     "El producto o servicio "
                             + productoId
-                            + " no estÃ¡ activo"
+                            + " no estÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ activo"
             );
         }
 
@@ -2225,6 +2588,14 @@ public class FacturaService {
                         )
                         .toList();
 
+        List<FacturaSustituidaResponse> facturasSustituidas =
+                factura.getFacturasSustituidas()
+                        .stream()
+                        .map(
+                                this::convertirFacturaSustituida
+                        )
+                        .toList();
+
         return new FacturaResponse(
                 factura.getId(),
                 factura.getEmpresa().getId(),
@@ -2267,10 +2638,39 @@ public class FacturaService {
 
                 facturasRectificadas,
 
+                facturasSustituidas,
+
                 lineas
         );
     }
 
+    private FacturaSustituidaResponse convertirFacturaSustituida(
+            FacturaSustituida relacion) {
+
+        Factura original =
+                relacion.getFacturaSustituida();
+
+        Long serieId =
+                original.getSerie() != null
+                        ? original.getSerie().getId()
+                        : null;
+
+        String serieCodigo =
+                original.getSerie() != null
+                        ? original.getSerie().getCodigo()
+                        : null;
+
+        return new FacturaSustituidaResponse(
+                original.getId(),
+                serieId,
+                serieCodigo,
+                original.getNumero(),
+                original.getFechaExpedicion(),
+                original.getBaseImponible(),
+                original.getCuotaImpuesto(),
+                original.getTotal()
+        );
+    }
     private FacturaRectificadaResponse convertirFacturaRectificada(
             FacturaRectificada relacion) {
 

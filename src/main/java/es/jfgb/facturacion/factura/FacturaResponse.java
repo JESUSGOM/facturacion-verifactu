@@ -46,8 +46,105 @@ public record FacturaResponse(
 
         List<FacturaRectificadaResponse> facturasRectificadas,
 
+        List<FacturaSustituidaResponse> facturasSustituidas,
+
         List<FacturaLineaResponse> lineas
 ) {
+
+    /**
+     * Constructor de compatibilidad anterior a F3.
+     *
+     * Mantiene compatibles los consumidores que ya enviaban
+     * la lista de facturas rectificadas.
+     */
+    public FacturaResponse(
+
+            Long id,
+            Long empresaId,
+            Long clienteId,
+            Long serieId,
+            String serieCodigo,
+
+            EstadoFactura estado,
+            Long numero,
+            LocalDate fechaExpedicion,
+
+            TipoFactura tipoFactura,
+            TipoRectificativa tipoRectificativa,
+            String motivoRectificacion,
+            BigDecimal baseRectificada,
+            BigDecimal cuotaRectificada,
+
+            String observaciones,
+
+            BigDecimal baseImponible,
+            BigDecimal cuotaImpuesto,
+            BigDecimal total,
+
+            String clienteNif,
+            String clienteNombre,
+            String clienteDireccion,
+            String clienteCodigoPostal,
+            String clienteMunicipio,
+            String clienteProvincia,
+            String clienteCodigoPais,
+
+            Instant fechaCreacion,
+            Instant fechaModificacion,
+            Instant fechaEmision,
+
+            Instant fechaAnulacion,
+            String motivoAnulacion,
+
+            List<FacturaRectificadaResponse> facturasRectificadas,
+
+            List<FacturaLineaResponse> lineas) {
+
+        this(
+                id,
+                empresaId,
+                clienteId,
+                serieId,
+                serieCodigo,
+
+                estado,
+                numero,
+                fechaExpedicion,
+
+                tipoFactura,
+                tipoRectificativa,
+                motivoRectificacion,
+                baseRectificada,
+                cuotaRectificada,
+
+                observaciones,
+
+                baseImponible,
+                cuotaImpuesto,
+                total,
+
+                clienteNif,
+                clienteNombre,
+                clienteDireccion,
+                clienteCodigoPostal,
+                clienteMunicipio,
+                clienteProvincia,
+                clienteCodigoPais,
+
+                fechaCreacion,
+                fechaModificacion,
+                fechaEmision,
+
+                fechaAnulacion,
+                motivoAnulacion,
+
+                facturasRectificadas,
+
+                List.of(),
+
+                lineas
+        );
+    }
 
     /**
      * Constructor de compatibilidad para facturas ordinarias.
@@ -127,6 +224,8 @@ public record FacturaResponse(
 
                 fechaAnulacion,
                 motivoAnulacion,
+
+                List.of(),
 
                 List.of(),
 
