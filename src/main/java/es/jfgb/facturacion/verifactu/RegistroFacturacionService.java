@@ -437,6 +437,34 @@ public class RegistroFacturacionService {
                         );
                     }
 
+                    /*
+                     * Una F2 simplificada no identifica destinatario.
+                     *
+                     * Se vuelve a comprobar al crear el snapshot
+                     * para impedir que una inconsistencia llegue
+                     * al registro fiscal de la F3.
+                     */
+                    if (original.getCliente() != null) {
+
+                        throw error(
+                                "La factura F2 sustituida no debe tener "
+                                        + "destinatario identificado"
+                        );
+                    }
+
+                    Integer ordenRelacion =
+                            relacion.getOrden();
+
+                    if (ordenRelacion == null
+                            || ordenRelacion < 1
+                            || ordenRelacion > 1000) {
+
+                        throw error(
+                                "El orden de una factura F2 sustituida "
+                                        + "debe estar entre 1 y 1000"
+                        );
+                    }
+
                     if (original.getEmpresa() == null
                             || !empresaId.equals(
                             original.getEmpresa().getId()
@@ -475,7 +503,7 @@ public class RegistroFacturacionService {
                     );
 
                     snapshot.setOrden(
-                            relacion.getOrden().shortValue()
+                            ordenRelacion.shortValue()
                     );
 
                     snapshot.setNifEmisor(

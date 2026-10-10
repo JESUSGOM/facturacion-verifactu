@@ -1636,6 +1636,23 @@ public class FacturaService {
             );
         }
 
+        /*
+         * Defensa adicional en el momento de la emision.
+         *
+         * Aunque un borrador F3 solo puede crearse o
+         * modificarse con una serie ordinaria, volvemos
+         * a comprobarlo antes de consumir numeracion.
+         */
+        if (factura.getTipoFactura() == TipoFactura.F3
+                && serie.getTipoSerie()
+                != TipoSerieFacturacion.ORDINARIA) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Una factura F3 debe utilizar una serie ordinaria"
+            );
+        }
+
         long siguienteNumero =
                 serie.getUltimoNumero() + 1L;
 
