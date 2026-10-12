@@ -33,6 +33,10 @@ class AeatPreproduccionAltaIT {
             named = "VERIFACTU_AEAT_CERT_SHA256",
             matches = ".+"
     )
+    @EnabledIfEnvironmentVariable(
+            named = "AEAT_PRE_ALTA_REAL_HABILITADA",
+            matches = "SI"
+    )
     void enviaRegistroAltaRealAlEntornoDePruebasAeat()
             throws Exception {
 
@@ -55,6 +59,41 @@ class AeatPreproduccionAltaIT {
         String nifObligado =
                 System.getenv(
                         "AEAT_TEST_OBLIGADO_NIF"
+                );
+
+        String sistemaNombreRazon =
+                obligatorio(
+                        "VERIFACTU_SISTEMA_NOMBRE_RAZON"
+                );
+
+        String sistemaNif =
+                obligatorio(
+                        "VERIFACTU_SISTEMA_NIF"
+                );
+
+        String sistemaNombre =
+                obligatorio(
+                        "VERIFACTU_SISTEMA_NOMBRE"
+                );
+
+        String sistemaId =
+                obligatorio(
+                        "VERIFACTU_SISTEMA_ID"
+                );
+
+        String sistemaVersion =
+                obligatorio(
+                        "VERIFACTU_SISTEMA_VERSION"
+                );
+
+        String sistemaSoloVerifactu =
+                obligatorioSN(
+                        "VERIFACTU_SISTEMA_SOLO_VERIFACTU"
+                );
+
+        String sistemaMultiOt =
+                obligatorioSN(
+                        "VERIFACTU_SISTEMA_MULTI_OT"
                 );
 
         assertNotNull(
@@ -265,27 +304,27 @@ class AeatPreproduccionAltaIT {
         );
 
         /*
-         * En esta prueba el productor del SIF
-         * coincide con el titular que estamos utilizando.
+         * Los datos del productor del SIF se mantienen
+         * separados de los datos del obligado tributario.
          */
         registro.setSistemaNombreRazon(
-                nombreObligado
+                sistemaNombreRazon
         );
 
         registro.setSistemaNif(
-                nifObligado
+                sistemaNif
         );
 
         registro.setSistemaNombre(
-                "Gombeth Factura"
+                sistemaNombre
         );
 
         registro.setSistemaId(
-                "GF"
+                sistemaId
         );
 
         registro.setSistemaVersion(
-                "0.0.1-SNAPSHOT"
+                sistemaVersion
         );
 
         registro.setSistemaNumeroInstalacion(
@@ -293,7 +332,7 @@ class AeatPreproduccionAltaIT {
         );
 
         registro.setSistemaSoloVerifactu(
-                "S"
+                sistemaSoloVerifactu
         );
 
         /*
@@ -301,7 +340,7 @@ class AeatPreproduccionAltaIT {
          * obligados tributarios.
          */
         registro.setSistemaMultiOt(
-                "S"
+                sistemaMultiOt
         );
 
         /*
@@ -517,6 +556,46 @@ class AeatPreproduccionAltaIT {
                                 "getDescripcionErrorRegistro"
                         )
         );
+    }
+
+    private static String obligatorio(
+            String nombreVariable) {
+
+        String valor =
+                System.getenv(
+                        nombreVariable
+                );
+
+        if (valor == null
+                || valor.isBlank()) {
+
+            throw new IllegalStateException(
+                    "Falta la variable de entorno: "
+                            + nombreVariable
+            );
+        }
+
+        return valor.trim();
+    }
+
+    private static String obligatorioSN(
+            String nombreVariable) {
+
+        String valor =
+                obligatorio(
+                        nombreVariable
+                ).toUpperCase();
+
+        if (!"S".equals(valor)
+                && !"N".equals(valor)) {
+
+            throw new IllegalStateException(
+                    nombreVariable
+                            + " debe contener S o N"
+            );
+        }
+
+        return valor;
     }
 
     private static String leerPropiedad(
