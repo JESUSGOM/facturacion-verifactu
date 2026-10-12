@@ -114,6 +114,21 @@ class AeatPreproduccionAltaIT {
                         );
 
         /*
+         * Cada ejecución de este IT representa una instalación
+         * técnica de pruebas independiente.
+         *
+         * Así puede declarar correctamente PrimerRegistro
+         * sin depender de ejecuciones anteriores.
+         */
+        String numeroInstalacion =
+                "PREIT-"
+                        + fechaHora.format(
+                                DateTimeFormatter.ofPattern(
+                                        "yyyyMMddHHmmssSSS"
+                                )
+                        );
+
+        /*
          * =========================================================
          * REGISTRO VERI*FACTU
          * =========================================================
@@ -308,7 +323,7 @@ class AeatPreproduccionAltaIT {
         );
 
         registro.setSistemaNumeroInstalacion(
-                "PREPROD01"
+                numeroInstalacion
         );
 
         registro.setSistemaSoloVerifactu(
