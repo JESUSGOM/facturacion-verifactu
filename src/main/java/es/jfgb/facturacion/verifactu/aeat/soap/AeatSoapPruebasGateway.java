@@ -8,13 +8,36 @@ import es.gob.agenciatributaria.www2.static_files.common.internet.dep.aplicacion
 import es.gob.agenciatributaria.www2.static_files.common.internet.dep.aplicaciones.es.aeat.tike.cont.ws.suministrolr.RegFactuSistemaFacturacion;
 import es.gob.agenciatributaria.www2.static_files.common.internet.dep.aplicaciones.es.aeat.tike.cont.ws.suministrolr.RegistroFacturaType;
 
+import es.jfgb.facturacion.verifactu.aeat.security.AeatEndpointPreproduccionValidator;
+import jakarta.xml.ws.BindingProvider;
+
 public class AeatSoapPruebasGateway
         implements AeatSoapGateway {
 
     private final SfPortTypeVerifactu port;
+    private final Runnable validadorDestino;
 
     public AeatSoapPruebasGateway(
             SfPortTypeVerifactu port) {
+
+        this(
+                port,
+                crearValidadorDestino(
+                        port
+                )
+        );
+    }
+
+    /*
+     * Constructor de apoyo para pruebas unitarias.
+     *
+     * El constructor publico utilizado en produccion
+     * sigue exigiendo un BindingProvider real y valida
+     * el endpoint AEAT PRE.
+     */
+    AeatSoapPruebasGateway(
+            SfPortTypeVerifactu port,
+            Runnable validadorDestino) {
 
         if (port == null) {
             throw new IllegalArgumentException(
@@ -22,9 +45,58 @@ public class AeatSoapPruebasGateway
             );
         }
 
+        if (validadorDestino == null) {
+            throw new IllegalArgumentException(
+                    "El validador del destino AEAT no puede ser nulo"
+            );
+        }
+
         this.port = port;
+        this.validadorDestino = validadorDestino;
+
+        validarDestino();
     }
 
+    private static Runnable crearValidadorDestino(
+            SfPortTypeVerifactu port) {
+
+        /*
+         * El caso nulo lo resuelve el constructor principal
+         * con su mensaje especifico.
+         */
+        if (port == null) {
+            return () -> {};
+        }
+
+        if (!(port instanceof BindingProvider proveedor)) {
+
+            throw new IllegalArgumentException(
+                    "El puerto SOAP debe implementar BindingProvider"
+            );
+        }
+
+        return () -> {
+
+            Object endpoint =
+                    proveedor
+                            .getRequestContext()
+                            .get(
+                                    BindingProvider
+                                            .ENDPOINT_ADDRESS_PROPERTY
+                            );
+
+            AeatEndpointPreproduccionValidator.validar(
+                    endpoint instanceof String direccion
+                            ? direccion
+                            : null
+            );
+        };
+    }
+
+    private void validarDestino() {
+
+        validadorDestino.run();
+    }
     @Override
     public AeatSoapResultadoAlta enviarAlta(
             CabeceraType cabecera,
@@ -61,6 +133,8 @@ public class AeatSoapPruebasGateway
                 .add(
                         registroFactura
                 );
+
+        validarDestino();
 
         RespuestaRegFactuSistemaFacturacionType respuesta =
                 port.regFactuSistemaFacturacion(
@@ -103,6 +177,8 @@ public class AeatSoapPruebasGateway
          * el resultado. Su unica responsabilidad es delegar
          * en el puerto SOAP generado por el WSDL.
          */
+        validarDestino();
+
         return port.consultaFactuSistemaFacturacion(
                 consulta
         );

@@ -38,7 +38,8 @@ class AeatSoapPruebasGatewayConsultaTest {
 
         AeatSoapPruebasGateway gateway =
                 new AeatSoapPruebasGateway(
-                        port
+                        port,
+                        () -> {}
                 );
 
         RespuestaConsultaFactuSistemaFacturacionType resultado =
@@ -72,7 +73,8 @@ class AeatSoapPruebasGatewayConsultaTest {
 
         AeatSoapPruebasGateway gateway =
                 new AeatSoapPruebasGateway(
-                        port
+                        port,
+                        () -> {}
                 );
 
         assertThrows(

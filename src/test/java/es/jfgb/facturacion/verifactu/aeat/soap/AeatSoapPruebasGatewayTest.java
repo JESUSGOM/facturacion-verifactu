@@ -37,7 +37,8 @@ class AeatSoapPruebasGatewayTest {
 
         gateway =
                 new AeatSoapPruebasGateway(
-                        port
+                        port,
+                        () -> {}
                 );
     }
 

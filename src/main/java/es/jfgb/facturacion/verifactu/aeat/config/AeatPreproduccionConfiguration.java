@@ -14,6 +14,8 @@ import es.jfgb.facturacion.verifactu.provider.VerifactuProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import es.jfgb.facturacion.verifactu.aeat.security.AeatEndpointPreproduccionValidator;
+import jakarta.xml.ws.BindingProvider;
 
 @Configuration
 @Profile("aeat-pre & !dev")
@@ -28,6 +30,20 @@ public class AeatPreproduccionConfiguration {
 
         SfPortTypeVerifactu port =
                 servicio.getSistemaVerifactuPruebas();
+
+        BindingProvider bindingProvider =
+                (BindingProvider) port;
+
+        Object endpoint =
+                bindingProvider.getRequestContext().get(
+                        BindingProvider.ENDPOINT_ADDRESS_PROPERTY
+                );
+
+        AeatEndpointPreproduccionValidator.validar(
+                endpoint instanceof String
+                        ? (String) endpoint
+                        : null
+        );
 
         /*
          * Todo puerto SOAP de preproducción creado por Spring
