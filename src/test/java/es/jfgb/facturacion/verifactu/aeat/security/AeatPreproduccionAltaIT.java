@@ -22,7 +22,6 @@ import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class AeatPreproduccionAltaIT {
@@ -52,12 +51,12 @@ class AeatPreproduccionAltaIT {
                 );
 
         String nombreObligado =
-                System.getenv(
+                obligatorio(
                         "AEAT_TEST_OBLIGADO_NOMBRE"
                 );
 
         String nifObligado =
-                System.getenv(
+                obligatorioNif(
                         "AEAT_TEST_OBLIGADO_NIF"
                 );
 
@@ -67,7 +66,7 @@ class AeatPreproduccionAltaIT {
                 );
 
         String sistemaNif =
-                obligatorio(
+                obligatorioNif(
                         "VERIFACTU_SISTEMA_NIF"
                 );
 
@@ -96,25 +95,6 @@ class AeatPreproduccionAltaIT {
                         "VERIFACTU_SISTEMA_MULTI_OT"
                 );
 
-        assertNotNull(
-                nombreObligado,
-                "Falta AEAT_TEST_OBLIGADO_NOMBRE"
-        );
-
-        assertFalse(
-                nombreObligado.isBlank(),
-                "AEAT_TEST_OBLIGADO_NOMBRE está vacío"
-        );
-
-        assertNotNull(
-                nifObligado,
-                "Falta AEAT_TEST_OBLIGADO_NIF"
-        );
-
-        assertFalse(
-                nifObligado.isBlank(),
-                "AEAT_TEST_OBLIGADO_NIF está vacío"
-        );
 
         /*
          * =========================================================
@@ -576,6 +556,28 @@ class AeatPreproduccionAltaIT {
         }
 
         return valor.trim();
+    }
+
+    private static String obligatorioNif(
+            String nombreVariable) {
+
+        String valor =
+                obligatorio(
+                        nombreVariable
+                ).toUpperCase();
+
+        if (!valor.matches(
+                "[0-9A-Z]{9}"
+        )) {
+
+            throw new IllegalStateException(
+                    nombreVariable
+                            + " debe contener exactamente "
+                            + "9 caracteres alfanumericos"
+            );
+        }
+
+        return valor;
     }
 
     private static String obligatorioSN(
