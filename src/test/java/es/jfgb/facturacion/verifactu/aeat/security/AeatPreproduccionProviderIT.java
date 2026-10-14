@@ -39,6 +39,10 @@ class AeatPreproduccionProviderIT {
             named = "VERIFACTU_AEAT_CERT_SHA256",
             matches = ".+"
     )
+    @EnabledIfEnvironmentVariable(
+            named = "AEAT_PRE_PROVIDER_REAL_HABILITADO",
+            matches = "SI"
+    )
     void enviaAltaMedianteAeatVerifactuProvider()
             throws Exception {
 
@@ -59,7 +63,7 @@ class AeatPreproduccionProviderIT {
                 );
 
         String nifObligado =
-                obligatorio(
+                obligatorioNif(
                         "AEAT_TEST_OBLIGADO_NIF"
                 );
 
@@ -69,8 +73,33 @@ class AeatPreproduccionProviderIT {
                 );
 
         String sistemaNif =
-                obligatorio(
+                obligatorioNif(
                         "VERIFACTU_SISTEMA_NIF"
+                );
+
+        String sistemaNombre =
+                obligatorio(
+                        "VERIFACTU_SISTEMA_NOMBRE"
+                );
+
+        String sistemaId =
+                obligatorio(
+                        "VERIFACTU_SISTEMA_ID"
+                );
+
+        String sistemaVersion =
+                obligatorio(
+                        "VERIFACTU_SISTEMA_VERSION"
+                );
+
+        String sistemaSoloVerifactu =
+                obligatorioSN(
+                        "VERIFACTU_SISTEMA_SOLO_VERIFACTU"
+                );
+
+        String sistemaMultiOt =
+                obligatorioSN(
+                        "VERIFACTU_SISTEMA_MULTI_OT"
                 );
 
         /*
@@ -84,6 +113,18 @@ class AeatPreproduccionProviderIT {
 
         String numeroFactura =
                 "PRE-PROVIDER-GF-"
+                        + fechaHora.format(
+                                DateTimeFormatter.ofPattern(
+                                        "yyyyMMddHHmmssSSS"
+                                )
+                        );
+
+        /*
+         * Cada ejecución representa una instalación
+         * técnica independiente de preproducción.
+         */
+        String numeroInstalacion =
+                "PREIT-PROVIDER-"
                         + fechaHora.format(
                                 DateTimeFormatter.ofPattern(
                                         "yyyyMMddHHmmssSSS"
@@ -259,31 +300,27 @@ class AeatPreproduccionProviderIT {
         );
 
         registro.setSistemaNombre(
-                "Gombeth Factura"
+                sistemaNombre
         );
 
         registro.setSistemaId(
-                "GF"
+                sistemaId
         );
 
         registro.setSistemaVersion(
-                "0.0.1-SNAPSHOT"
+                sistemaVersion
         );
 
-        /*
-         * Mantenemos la misma instalación utilizada
-         * en la prueba anterior.
-         */
         registro.setSistemaNumeroInstalacion(
-                "PREPROD01"
+                numeroInstalacion
         );
 
         registro.setSistemaSoloVerifactu(
-                "S"
+                sistemaSoloVerifactu
         );
 
         registro.setSistemaMultiOt(
-                "S"
+                sistemaMultiOt
         );
 
         registro.setSistemaMultiplesOt(
@@ -409,6 +446,31 @@ class AeatPreproduccionProviderIT {
 
         /*
          * =========================================================
+         * IDENTIFICADORES TECNICOS NO SENSIBLES
+         *
+         * Se imprimen ANTES del envio para poder identificar
+         * exactamente el intento incluso si hubiera un resultado
+         * de transporte incierto.
+         * =========================================================
+         */
+
+        System.out.println(
+                "PROVIDER_AEAT_NUM_SERIE_FACTURA="
+                        + numeroFactura
+        );
+
+        System.out.println(
+                "PROVIDER_AEAT_FECHA_EXPEDICION="
+                        + registro.getFechaExpedicion()
+        );
+
+        System.out.println(
+                "PROVIDER_AEAT_NUMERO_INSTALACION="
+                        + numeroInstalacion
+        );
+
+        /*
+         * =========================================================
          * ESTA LINEA REALIZA EL ALTA EN PREPRODUCCION
          * =========================================================
          */
@@ -530,6 +592,48 @@ class AeatPreproduccionProviderIT {
                 "PROVIDER_AEAT_MENSAJE="
                         + resultado.mensaje()
         );
+    }
+
+    private static String obligatorioNif(
+            String nombreVariable) {
+
+        String valor =
+                obligatorio(
+                        nombreVariable
+                ).toUpperCase();
+
+        if (!valor.matches(
+                "[0-9A-Z]{9}"
+        )) {
+
+            throw new IllegalStateException(
+                    nombreVariable
+                            + " debe contener exactamente "
+                            + "9 caracteres alfanumericos"
+            );
+        }
+
+        return valor;
+    }
+
+    private static String obligatorioSN(
+            String nombreVariable) {
+
+        String valor =
+                obligatorio(
+                        nombreVariable
+                ).toUpperCase();
+
+        if (!"S".equals(valor)
+                && !"N".equals(valor)) {
+
+            throw new IllegalStateException(
+                    nombreVariable
+                            + " debe contener S o N"
+            );
+        }
+
+        return valor;
     }
 
     private static String obligatorio(
