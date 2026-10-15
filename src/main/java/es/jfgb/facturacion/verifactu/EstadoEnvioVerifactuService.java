@@ -3,6 +3,7 @@ package es.jfgb.facturacion.verifactu;
 import es.jfgb.facturacion.verifactu.provider.EnvioVerifactuInciertoException;
 import es.jfgb.facturacion.verifactu.provider.EstadoResultadoEnvioVerifactu;
 import es.jfgb.facturacion.verifactu.provider.ResultadoEnvioVerifactu;
+import org.hibernate.Hibernate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -174,7 +175,45 @@ public class EstadoEnvioVerifactuService {
                 intento
         );
 
+        inicializarDatosParaProveedor(
+                registro
+        );
+
         return registro;
+    }
+
+    /*
+     * Carga dentro de la transaccion las relaciones LAZY
+     * necesarias para construir el XML despues del commit.
+     *
+     * La llamada al proveedor se realiza fuera de esta
+     * transaccion deliberadamente: ENVIANDO y el intento
+     * deben quedar persistidos antes de salir a la red.
+     */
+    private void inicializarDatosParaProveedor(
+            RegistroFacturacion registro) {
+
+        Hibernate.initialize(
+                registro.getDesgloses()
+        );
+
+        Hibernate.initialize(
+                registro.getFacturasRectificadas()
+        );
+
+        Hibernate.initialize(
+                registro.getFacturasSustituidas()
+        );
+
+        RegistroFacturacion anterior =
+                registro.getRegistroAnterior();
+
+        if (anterior != null) {
+
+            Hibernate.initialize(
+                    anterior
+            );
+        }
     }
 
     private void comprobarAltaOriginalAceptada(

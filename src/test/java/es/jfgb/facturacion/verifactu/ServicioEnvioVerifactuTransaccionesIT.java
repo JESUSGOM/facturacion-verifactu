@@ -10,8 +10,10 @@ import es.jfgb.facturacion.factura.FacturaLinea;
 import es.jfgb.facturacion.factura.FacturaRepository;
 import es.jfgb.facturacion.serie.SerieFacturacion;
 import es.jfgb.facturacion.serie.SerieFacturacionRepository;
+import es.jfgb.facturacion.verifactu.aeat.AeatSolicitudAltaXmlBuilder;
 import es.jfgb.facturacion.verifactu.provider.ResultadoEnvioVerifactu;
 import es.jfgb.facturacion.verifactu.provider.VerifactuProvider;
+import org.hibernate.Hibernate;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -66,6 +68,9 @@ class ServicioEnvioVerifactuTransaccionesIT {
 
     @Autowired
     private PlatformTransactionManager transactionManager;
+
+    @Autowired
+    private AeatSolicitudAltaXmlBuilder altaXmlBuilder;
 
     @Test
     void confirmaDosTransaccionesSeparadasSinAeat() {
@@ -341,6 +346,72 @@ class ServicioEnvioVerifactuTransaccionesIT {
 
                         vioIntento.set(
                                 true
+                        );
+
+                        /*
+                         * iniciarEnvio() ya ha terminado su
+                         * transaccion cuando entramos aqui.
+                         *
+                         * El RegistroFacturacion recibido debe
+                         * conservar cargadas las relaciones LAZY
+                         * que necesita el mapper AEAT.
+                         */
+                        assertTrue(
+                                Hibernate.isInitialized(
+                                        registro.getDesgloses()
+                                ),
+                                "desgloses no esta inicializada"
+                        );
+
+                        assertTrue(
+                                Hibernate.isInitialized(
+                                        registro.getFacturasRectificadas()
+                                ),
+                                "facturasRectificadas no esta inicializada"
+                        );
+
+                        assertTrue(
+                                Hibernate.isInitialized(
+                                        registro.getFacturasSustituidas()
+                                ),
+                                "facturasSustituidas no esta inicializada"
+                        );
+
+                        RegistroFacturacion anterior =
+                                registro.getRegistroAnterior();
+
+                        assertTrue(
+                                anterior == null
+                                        || Hibernate.isInitialized(anterior),
+                                "registroAnterior no esta inicializado"
+                        );
+
+                        /*
+                         * Reproducimos localmente el punto exacto
+                         * que fallo en el E2E: construir el XML
+                         * una vez terminado el primer commit.
+                         *
+                         * generarXml() no realiza HTTP ni SOAP.
+                         */
+                        String xml =
+                                altaXmlBuilder.generarXml(
+                                        registro
+                                );
+
+                        assertNotNull(
+                                xml
+                        );
+
+                        assertFalse(
+                                xml.isBlank()
+                        );
+
+                        System.out.println(
+                                "VERIFACTU_TX_LAZY_DETACHED_OK=true"
+                        );
+
+                        System.out.println(
+                                "VERIFACTU_TX_XML_DETACHED_OK=true"
                         );
 
                         return new ResultadoEnvioVerifactu(
